@@ -7,6 +7,9 @@ extern crate itertools;
 
 use serde_json::Value;
 
+mod error;
+mod unique;
+mod util;
 mod validators;
 
 pub fn validate(instance: &Value, schema: &Value) -> validators::ValidatorResult {

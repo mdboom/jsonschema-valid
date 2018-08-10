@@ -1,46 +1,16 @@
-use std::collections::HashSet;
-use std::fmt;
-use std::fmt::Debug;
-use std::hash::Hash;
-use std::hash::Hasher;
-use std::iter;
-
-use itertools::Itertools;
+#![allow(non_snake_case)]
 
 use regex;
 
 use serde_json::{Map, Value};
 
-type Validator = fn(instance: &Value, schema: &Value, parent_schema: &Map<String, Value>) -> ValidatorResult;
-
-#[derive(Default)]
-pub struct ValidationError {
-  msg: String,
-  instance_path: Vec<String>,
-  schema_path: Vec<String>
-}
-
-impl Debug for ValidationError {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    let instance_path = self.instance_path.iter().rev().join("/");
-    let schema_path = self.schema_path.iter().rev().join("/");
-    write!(f, "At {} in schema {}: {}",
-           instance_path,
-           schema_path,
-           self.msg)
-  }
-}
-
-impl ValidationError {
-  pub fn new(msg: &str) -> ValidationError {
-    ValidationError {
-      msg: String::from(msg),
-      ..Default::default()
-    }
-  }
-}
+use error::ValidationError;
+use unique;
+use util;
 
 pub type ValidatorResult = Result<(), ValidationError>;
+
+type Validator = fn(instance: &Value, schema: &Value, parent_schema: &Map<String, Value>) -> ValidatorResult;
 
 fn get_validator(key: &str) -> Option<Validator> {
   match key {
@@ -93,7 +63,7 @@ pub fn run_validators(instance: &Value, schema: &Value) -> ValidatorResult {
         for (k, v) in schema_object.iter() {
           if let Some(validator) = get_validator(k.as_ref()) {
             if let Err(mut err) = validator(instance, v, schema_object) {
-              err.schema_path.push(k.clone());
+              err.add_schema_path(k);
               return Err(err)
             }
           }
@@ -112,10 +82,10 @@ pub fn is_valid(instance: &Value, schema: &Value) -> bool {
 fn descend(instance: &Value, schema: &Value, instance_key: Option<&String>, schema_key: Option<&String>) -> ValidatorResult {
   if let Err(mut err) = run_validators(instance, schema) {
     if let Some(instance_key) = instance_key {
-      err.instance_path.push(instance_key.clone());
+      err.add_instance_path(instance_key);
     }
     if let Some(schema_key) = schema_key {
-      err.schema_path.push(schema_key.clone());
+      err.add_schema_path(schema_key);
     }
     Err(err)
   } else {
@@ -123,22 +93,11 @@ fn descend(instance: &Value, schema: &Value, instance_key: Option<&String>, sche
   }
 }
 
-fn get_regex(pattern: &String) -> Result<regex::Regex, ValidationError> {
-  match regex::Regex::new(pattern) {
-    Ok(re) => Ok(re),
-    Err(err) => match err {
-      regex::Error::Syntax(msg) => Err(ValidationError::new(&msg)),
-      regex::Error::CompiledTooBig(_) => Err(ValidationError::new("regex too big")),
-      _ => Err(ValidationError::new("Unknown regular expression error"))
-    }
-  }
-}
-
 fn validate_patternProperties(instance: &Value, schema: &Value, _parent_schema: &Map<String, Value>) -> ValidatorResult {
   if let Value::Object(instance) = instance {
     if let Value::Object(schema) = schema {
       for (pattern, subschema) in schema.iter() {
-        let re = get_regex(pattern)?;
+        let re = util::get_regex(pattern)?;
         for (k, v) in instance.iter() {
           // TODO: Verify that regex syntax is the same
           if re.is_match(k) {
@@ -160,32 +119,32 @@ fn validate_propertyNames(instance: &Value, schema: &Value, _parent_schema: &Map
   Ok(())
 }
 
-fn find_additional_properties<'a>(instance: &'a Map<String, Value>, schema: &'a Map<String, Value>) -> Box<Iterator<Item=&'a String> + 'a> {
+fn find_additional_properties<'a>(instance: &'a Map<String, Value>, schema: &'a Map<String, Value>) -> Result<Box<Iterator<Item=&'a String> + 'a>, ValidationError> {
   lazy_static! {
-    static ref empty_obj: Value = Value::Object(Map::new());
+    static ref EMPTY_OBJ: Value = Value::Object(Map::new());
   }
-  let properties = schema.get("properties").unwrap_or_else(move || &empty_obj);
-  let pattern_properties = schema.get("patternProperties").unwrap_or_else(move || &empty_obj);
+  let properties = schema.get("properties").unwrap_or_else(move || &EMPTY_OBJ);
+  let pattern_properties = schema.get("patternProperties").unwrap_or_else(move || &EMPTY_OBJ);
   if let Value::Object(properties) = properties {
     if let Value::Object(pattern_properties) = pattern_properties {
-      let pattern_regexes: Vec<regex::Regex> = pattern_properties
+      let pattern_regexes_result: Result<Vec<regex::Regex>, ValidationError> = pattern_properties
         .keys()
-        .map(|k| get_regex(k).unwrap())
+        .map(|k| util::get_regex(k))
         .collect();
-      return Box::new(
+      let pattern_regexes = pattern_regexes_result?;
+      return Ok(Box::new(
         instance
           .keys()
-          .filter(
-            move |&property| !properties.contains_key(property) &&
-              !pattern_regexes.iter().any(|x| x.is_match(property))))
+          .filter(move |&property| !properties.contains_key(property))
+          .filter(move |&property| !pattern_regexes.iter().any(|x| x.is_match(property)))))
     }
   }
-  Box::new(instance.keys())
+  Ok(Box::new(instance.keys()))
 }
 
 fn validate_additionalProperties(instance: &Value, schema: &Value, parent_schema: &Map<String, Value>) -> ValidatorResult {
   if let Value::Object(instance) = instance {
-    let mut extras = find_additional_properties(instance, parent_schema);
+    let mut extras = find_additional_properties(instance, parent_schema)?;
     match schema {
       Value::Object(_) => {
         for extra in extras {
@@ -210,7 +169,7 @@ fn validate_additionalProperties(instance: &Value, schema: &Value, parent_schema
 
 fn validate_items(instance: &Value, schema: &Value, _parent_schema: &Map<String, Value>) -> ValidatorResult {
   if let Value::Array(instance) = instance {
-    let items = bool_to_object_schema(schema);
+    let items = util::bool_to_object_schema(schema);
 
     match items {
       Value::Object(_) =>
@@ -357,59 +316,10 @@ fn validate_maxItems(instance: &Value, schema: &Value, _parent_schema: &Map<Stri
   Ok(())
 }
 
-struct ValueWrapper<'a> {
-  x: &'a Value
-}
-
-impl<'a> Hash for ValueWrapper<'a> {
-  fn hash<H: Hasher>(&self, state: &mut H) {
-    match self.x {
-      Value::Array(array) =>
-        for element in array {
-          ValueWrapper { x: element }.hash(state);
-        },
-      Value::Object(object) =>
-        for (key, val) in object {
-          key.hash(state);
-          ValueWrapper { x: val }.hash(state);
-        },
-      Value::String(string) => string.hash(state),
-      Value::Number(number) => {
-        if number.is_f64() {
-          number.as_f64().unwrap().to_bits().hash(state);
-        } else if number.is_u64() {
-          number.as_u64().unwrap().hash(state);
-        } else {
-          number.as_i64().unwrap().hash(state);
-        }
-      },
-      Value::Bool(bool) => bool.hash(state),
-      Value::Null => 0.hash(state)
-    }
-  }
-}
-
-impl<'a> PartialEq for ValueWrapper<'a> {
-  fn eq(&self, other: &ValueWrapper<'a>) -> bool {
-    self.x == other.x
-  }
-}
-
-impl<'a> Eq for ValueWrapper<'a> {}
-
-fn has_unique_elements<T>(iter: T) -> bool
-where
-  T: IntoIterator,
-  T::Item: Eq + Hash,
-{
-  let mut uniq = HashSet::new();
-  iter.into_iter().all(move |x| uniq.insert(x))
-}
-
 fn validate_uniqueItems(instance: &Value, schema: &Value, _parent_schema: &Map<String, Value>) -> ValidatorResult {
   if let Value::Array(instance) = instance {
     if let Value::Bool(b) = schema {
-      if *b && !has_unique_elements(instance.iter().map(|x| ValueWrapper {x: x})) {
+      if *b && !unique::has_unique_elements(&mut instance.iter()) {
         return Err(ValidationError::new("uniqueItems"))
       }
     }
@@ -420,7 +330,7 @@ fn validate_uniqueItems(instance: &Value, schema: &Value, _parent_schema: &Map<S
 fn validate_pattern(instance: &Value, schema: &Value, _parent_schema: &Map<String, Value>) -> ValidatorResult {
   if let Value::String(instance) = instance {
     if let Value::String(schema) = schema {
-      if !get_regex(schema)?.is_match(instance) {
+      if !util::get_regex(schema)?.is_match(instance) {
         return Err(ValidationError::new("pattern"))
       }
     }
@@ -452,31 +362,6 @@ fn validate_maxLength(instance: &Value, schema: &Value, _parent_schema: &Map<Str
   Ok(())
 }
 
-fn bool_to_object_schema<'a>(schema: &'a Value) -> &'a Value {
-  lazy_static! {
-    static ref empty_schema: Value = Value::Object(Map::new());
-    static ref inverse_schema: Value = json!({"not": {}});
-  }
-
-  match schema {
-    Value::Bool(bool) => {
-      if *bool {
-        &empty_schema
-      } else {
-        &inverse_schema
-      }
-    },
-    _ => schema
-  }
-}
-
-fn iter_or_once<'a>(instance: &'a Value) -> Box<Iterator<Item=&'a Value> + 'a> {
-  match instance {
-    Value::Array(array) => Box::new(array.iter()),
-    _ => Box::new(iter::once(instance))
-  }
-}
-
 fn validate_dependencies(instance: &Value, schema: &Value, _parent_schema: &Map<String, Value>) -> ValidatorResult {
   if let Value::Object(object) = instance {
     if let Value::Object(schema) = schema {
@@ -485,12 +370,12 @@ fn validate_dependencies(instance: &Value, schema: &Value, _parent_schema: &Map<
           continue;
         }
 
-        let dep = bool_to_object_schema(dependency);
+        let dep = util::bool_to_object_schema(dependency);
         match dep {
           Value::Object(_) =>
             descend(instance, dep, None, Some(property))?,
           _ => {
-            for dep0 in iter_or_once(dep) {
+            for dep0 in util::iter_or_once(dep) {
               if let Value::String(key) = dep0 {
                 println!("key {}", key);
                 if !object.contains_key(key) {
@@ -584,7 +469,7 @@ fn validate_single_type(instance: &Value, schema: &Value) -> ValidatorResult {
 }
 
 fn validate_type(instance: &Value, schema: &Value, _parent_schema: &Map<String, Value>) -> ValidatorResult {
-  if !iter_or_once(schema).any(|x| validate_single_type(instance, x).is_ok()) {
+  if !util::iter_or_once(schema).any(|x| validate_single_type(instance, x).is_ok()) {
     return Err(ValidationError::new("type"))
   }
   Ok(())
@@ -644,7 +529,7 @@ fn validate_maxProperties(instance: &Value, schema: &Value, _parent_schema: &Map
 fn validate_allOf(instance: &Value, schema: &Value, _parent_schema: &Map<String, Value>) -> ValidatorResult {
   if let Value::Array(schema) = schema {
     for (index, subschema) in schema.iter().enumerate() {
-      let subschema0 = bool_to_object_schema(subschema);
+      let subschema0 = util::bool_to_object_schema(subschema);
       descend(instance, subschema0, None, Some(&index.to_string()))?;
     }
   }
@@ -654,7 +539,7 @@ fn validate_allOf(instance: &Value, schema: &Value, _parent_schema: &Map<String,
 fn validate_anyOf(instance: &Value, schema: &Value, _parent_schema: &Map<String, Value>) -> ValidatorResult {
   if let Value::Array(schema) = schema {
     for (index, subschema) in schema.iter().enumerate() {
-      let subschema0 = bool_to_object_schema(subschema);
+      let subschema0 = util::bool_to_object_schema(subschema);
       // TODO Wrap up all errors into a list
       if descend(instance, subschema0, None, Some(&index.to_string())).is_ok() {
         return Ok(())
@@ -670,7 +555,7 @@ fn validate_oneOf(instance: &Value, schema: &Value, _parent_schema: &Map<String,
     let mut oneOf = schema.into_iter();
     let mut found_one = false;
     for (index, subschema) in oneOf.by_ref().enumerate() {
-      let subschema0 = bool_to_object_schema(subschema);
+      let subschema0 = util::bool_to_object_schema(subschema);
       if descend(instance, subschema0, None, Some(&index.to_string())).is_ok() {
         found_one = true;
         break;
@@ -682,7 +567,7 @@ fn validate_oneOf(instance: &Value, schema: &Value, _parent_schema: &Map<String,
     }
 
     for (index, subschema) in oneOf.by_ref().enumerate() {
-      let subschema0 = bool_to_object_schema(subschema);
+      let subschema0 = util::bool_to_object_schema(subschema);
       if descend(instance, subschema0, None, Some(&index.to_string())).is_ok() {
         return Err(ValidationError::new("More than one matched in oneOf"));
       }
