@@ -1,16 +1,16 @@
+use std::error;
 use std::fmt;
-use std::fmt::Debug;
 
 use itertools::Itertools;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ValidationError {
     msg: String,
     instance_path: Vec<String>,
     schema_path: Vec<String>,
 }
 
-impl Debug for ValidationError {
+impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let instance_path = self.instance_path.iter().rev().join("/");
         let schema_path = self.schema_path.iter().rev().join("/");
@@ -19,6 +19,12 @@ impl Debug for ValidationError {
             "At {} in schema {}: {}",
             instance_path, schema_path, self.msg
         )
+    }
+}
+
+impl error::Error for ValidationError {
+    fn cause(&self) -> Option<&error::Error> {
+        None
     }
 }
 
