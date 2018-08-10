@@ -45,6 +45,7 @@ pub type ValidatorResult = Result<(), ValidationError>;
 fn get_validator(key: &str) -> Option<Validator> {
   match key {
     "patternProperties" => Some(validate_patternProperties as Validator),
+    "pattern" => Some(validate_pattern as Validator),
     "propertyNames" => Some(validate_propertyNames as Validator),
     "additionalProperties" => Some(validate_additionalProperties as Validator),
     "items" => Some(validate_items as Validator),
@@ -416,7 +417,16 @@ fn validate_uniqueItems(instance: &Value, schema: &Value, _parent_schema: &Map<S
   Ok(())
 }
 
-// TODO pattern
+fn validate_pattern(instance: &Value, schema: &Value, _parent_schema: &Map<String, Value>) -> ValidatorResult {
+  if let Value::String(instance) = instance {
+    if let Value::String(schema) = schema {
+      if !get_regex(schema)?.is_match(instance) {
+        return Err(ValidationError::new("pattern"))
+      }
+    }
+  }
+  Ok(())
+}
 
 // TODO format
 
@@ -471,6 +481,10 @@ fn validate_dependencies(instance: &Value, schema: &Value, _parent_schema: &Map<
   if let Value::Object(object) = instance {
     if let Value::Object(schema) = schema {
       for (property, dependency) in schema.iter() {
+        if !object.contains_key(property) {
+          continue;
+        }
+
         let dep = bool_to_object_schema(dependency);
         match dep {
           Value::Object(_) =>
@@ -478,6 +492,7 @@ fn validate_dependencies(instance: &Value, schema: &Value, _parent_schema: &Map<
           _ => {
             for dep0 in iter_or_once(dep) {
               if let Value::String(key) = dep0 {
+                println!("key {}", key);
                 if !object.contains_key(key) {
                   return Err(ValidationError::new("dependency"))
                 }
@@ -644,14 +659,35 @@ fn validate_anyOf(instance: &Value, schema: &Value, _parent_schema: &Map<String,
       if descend(instance, subschema0, None, Some(&index.to_string())).is_ok() {
         return Ok(())
       }
-      return Err(ValidationError::new("anyOf"))
     }
+    return Err(ValidationError::new("anyOf"))
   }
   Ok(())
 }
 
-fn validate_oneOf(_instance: &Value, _schema: &Value, _parent_schema: &Map<String, Value>) -> ValidatorResult {
-  // TODO
+fn validate_oneOf(instance: &Value, schema: &Value, _parent_schema: &Map<String, Value>) -> ValidatorResult {
+  if let Value::Array(schema) = schema {
+    let mut oneOf = schema.into_iter();
+    let mut found_one = false;
+    for (index, subschema) in oneOf.by_ref().enumerate() {
+      let subschema0 = bool_to_object_schema(subschema);
+      if descend(instance, subschema0, None, Some(&index.to_string())).is_ok() {
+        found_one = true;
+        break;
+      }
+    }
+
+    if !found_one {
+      return Err(ValidationError::new("Nothing matched in oneOf"))
+    }
+
+    for (index, subschema) in oneOf.by_ref().enumerate() {
+      let subschema0 = bool_to_object_schema(subschema);
+      if descend(instance, subschema0, None, Some(&index.to_string())).is_ok() {
+        return Err(ValidationError::new("More than one matched in oneOf"));
+      }
+    }
+  }
   Ok(())
 }
 

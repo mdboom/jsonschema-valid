@@ -25,7 +25,7 @@ mod tests {
 
     for entry in paths {
       let path = &entry.unwrap().path();
-      if path.extension().unwrap() == "json" {
+      if path.extension().map_or_else(|| "", |x| x.to_str().unwrap()) == "json" {
         println!("Testing {:?}", path.display());
         let file = fs::File::open(path).unwrap();
         let json: Value = serde_json::from_reader(file).unwrap();
