@@ -9,9 +9,7 @@ pub trait Draft {
     fn get_schema(&self) -> &'static Value;
 }
 
-
 pub struct Draft6;
-
 
 impl Draft for Draft6 {
     fn get_validator(&self, key: &str) -> Option<Validator> {
@@ -61,14 +59,14 @@ impl Draft for Draft6 {
 pub fn draft_from_url(url: &str) -> Option<Box<Draft>> {
     match url {
         "http://json-schema.org/draft-06/schema" => Some(Box::new(Draft6 {})),
-        _ => None
+        _ => None,
     }
 }
 
 pub fn draft_from_schema(schema: &Value) -> Option<Box<Draft>> {
-    if let Value::Object(schema) = schema {
-        schema.get("$schema").and_then(|x| x.as_str()).and_then(|x| draft_from_url(x))
-    } else {
-        None
-    }
+    schema
+        .as_object()
+        .and_then(|x| x.get("$schema"))
+        .and_then(|x| x.as_str())
+        .and_then(|x| draft_from_url(x))
 }
