@@ -16,11 +16,13 @@ mod unique;
 mod util;
 mod validators;
 
-use context::Context;
-
 pub fn validate(instance: &Value, schema: &Value) -> validators::ValidatorResult {
-    context::Draft6Context::from_schema(schema)?.validate(instance, schema)
+    context::Context::from_schema(schema)?.validate(instance, schema)
 }
+
+// pub fn validate_schema(schema: &Value) -> validators::ValidatorResult {
+
+// }
 
 #[cfg(test)]
 mod tests {

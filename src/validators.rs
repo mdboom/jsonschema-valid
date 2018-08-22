@@ -282,7 +282,7 @@ pub fn validate_const(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    stack: &ScopeStack,
+    _stack: &ScopeStack,
 ) -> ValidatorResult {
     if instance != schema {
         return Err(ValidationError::new("Invalid const"));
@@ -295,7 +295,7 @@ pub fn validate_contains(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    stack: &ScopeStack,
+    _stack: &ScopeStack,
 ) -> ValidatorResult {
     if let Value::Array(instance) = instance {
         if !instance
@@ -318,7 +318,7 @@ pub fn validate_exclusiveMinimum(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    stack: &ScopeStack,
+    _stack: &ScopeStack,
 ) -> ValidatorResult {
     if let Value::Number(instance) = instance {
         if let Value::Number(schema) = schema {
@@ -335,7 +335,7 @@ pub fn validate_exclusiveMaximum(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    stack: &ScopeStack,
+    _stack: &ScopeStack,
 ) -> ValidatorResult {
     if let Value::Number(instance) = instance {
         if let Value::Number(schema) = schema {
@@ -352,7 +352,7 @@ pub fn validate_minimum(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    stack: &ScopeStack,
+    _stack: &ScopeStack,
 ) -> ValidatorResult {
     if let Value::Number(instance) = instance {
         if let Value::Number(schema) = schema {
@@ -369,7 +369,7 @@ pub fn validate_maximum(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    stack: &ScopeStack,
+    _stack: &ScopeStack,
 ) -> ValidatorResult {
     if let Value::Number(instance) = instance {
         if let Value::Number(schema) = schema {
@@ -386,7 +386,7 @@ pub fn validate_multipleOf(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    stack: &ScopeStack,
+    _stack: &ScopeStack,
 ) -> ValidatorResult {
     if let Value::Number(instance) = instance {
         if let Value::Number(schema) = schema {
@@ -411,7 +411,7 @@ pub fn validate_minItems(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    stack: &ScopeStack,
+    _stack: &ScopeStack,
 ) -> ValidatorResult {
     if let Value::Array(instance) = instance {
         if let Value::Number(schema) = schema {
@@ -428,7 +428,7 @@ pub fn validate_maxItems(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    stack: &ScopeStack,
+    _stack: &ScopeStack,
 ) -> ValidatorResult {
     if let Value::Array(instance) = instance {
         if let Value::Number(schema) = schema {
@@ -445,7 +445,7 @@ pub fn validate_uniqueItems(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    stack: &ScopeStack,
+    _stack: &ScopeStack,
 ) -> ValidatorResult {
     if let Value::Array(instance) = instance {
         if let Value::Bool(b) = schema {
@@ -462,7 +462,7 @@ pub fn validate_pattern(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    stack: &ScopeStack,
+    _stack: &ScopeStack,
 ) -> ValidatorResult {
     if let Value::String(instance) = instance {
         if let Value::String(schema) = schema {
@@ -481,7 +481,7 @@ pub fn validate_minLength(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    stack: &ScopeStack,
+    _stack: &ScopeStack,
 ) -> ValidatorResult {
     if let Value::String(instance) = instance {
         if let Value::Number(schema) = schema {
@@ -498,7 +498,7 @@ pub fn validate_maxLength(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    stack: &ScopeStack,
+    _stack: &ScopeStack,
 ) -> ValidatorResult {
     if let Value::String(instance) = instance {
         if let Value::Number(schema) = schema {
@@ -549,7 +549,7 @@ pub fn validate_enum(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    stack: &ScopeStack,
+    _stack: &ScopeStack,
 ) -> ValidatorResult {
     if let Value::Array(enums) = schema {
         if !enums.iter().any(|val| val == instance) {
@@ -633,7 +633,7 @@ pub fn validate_type(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    stack: &ScopeStack,
+    _stack: &ScopeStack,
 ) -> ValidatorResult {
     if !util::iter_or_once(schema).any(|x| validate_single_type(instance, x).is_ok()) {
         return Err(ValidationError::new("type"));
@@ -672,7 +672,7 @@ pub fn validate_required(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    stack: &ScopeStack,
+    _stack: &ScopeStack,
 ) -> ValidatorResult {
     if let Value::Object(instance) = instance {
         if let Value::Array(schema) = schema {
@@ -696,7 +696,7 @@ pub fn validate_minProperties(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    stack: &ScopeStack,
+    _stack: &ScopeStack,
 ) -> ValidatorResult {
     if let Value::Object(instance) = instance {
         if let Value::Number(schema) = schema {
@@ -713,7 +713,7 @@ pub fn validate_maxProperties(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    stack: &ScopeStack,
+    _stack: &ScopeStack,
 ) -> ValidatorResult {
     if let Value::Object(instance) = instance {
         if let Value::Number(schema) = schema {
