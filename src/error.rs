@@ -1,7 +1,10 @@
 use std::error;
+use std::io;
 use std::fmt;
 
 use itertools::Itertools;
+use regex;
+use url;
 
 #[derive(Default, Debug)]
 pub struct ValidationError {
@@ -25,6 +28,34 @@ impl fmt::Display for ValidationError {
 impl error::Error for ValidationError {
     fn cause(&self) -> Option<&error::Error> {
         None
+    }
+}
+
+impl From<regex::Error> for ValidationError {
+    fn from(err: regex::Error) -> ValidationError {
+        match err {
+            regex::Error::Syntax(msg) => ValidationError::new(&msg),
+            regex::Error::CompiledTooBig(_) => ValidationError::new("regex too big"),
+            _ => ValidationError::new("Unknown regular expression error"),
+        }
+    }
+}
+
+impl From<url::ParseError> for ValidationError {
+    fn from(err: url::ParseError) -> ValidationError {
+        ValidationError::new(&format!("Invalid URL: {:?}", err))
+    }
+}
+
+impl From<io::Error> for ValidationError {
+    fn from(err: io::Error) -> ValidationError {
+        ValidationError::new(&format!("IO error: {:?}", err))
+    }
+}
+
+impl From<()> for ValidationError {
+    fn from(_err: ()) -> ValidationError {
+        ValidationError::new("Unknown error")
     }
 }
 

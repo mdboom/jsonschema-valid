@@ -4,16 +4,22 @@ extern crate serde_json;
 #[macro_use]
 extern crate lazy_static;
 extern crate itertools;
+extern crate url;
 
 use serde_json::Value;
 
+mod context;
 mod error;
+mod resolver;
+mod schemas;
 mod unique;
 mod util;
 mod validators;
 
+use context::Context;
+
 pub fn validate(instance: &Value, schema: &Value) -> validators::ValidatorResult {
-    validators::run_validators(instance, schema)
+    context::Draft6Context::from_schema(schema)?.validate(instance, schema)
 }
 
 #[cfg(test)]
@@ -47,6 +53,7 @@ mod tests {
                         let data = test.get("data").unwrap();
                         let valid = test.get("valid").unwrap();
                         if let Value::Bool(is_valid) = valid {
+                            println!("{:?}", validate(&data, &schema));
                             assert_eq!(validate(&data, &schema).is_ok(), *is_valid);
                         }
                     }
