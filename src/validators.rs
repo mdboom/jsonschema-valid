@@ -9,11 +9,13 @@ use error::ValidationError;
 use unique;
 use util;
 
+// TODO: Move this to another module???
 pub struct ScopeStack<'a> {
     pub x: &'a Value,
     pub parent: Option<&'a ScopeStack<'a>>,
 }
 
+// TODO: Move this to another module???
 pub type ValidatorResult = Result<(), ValidationError>;
 
 pub type Validator = fn(
@@ -41,15 +43,13 @@ pub fn run_validators<'a>(
         Value::Object(schema_object) => {
             if schema_object.contains_key("$ref") {
                 if let Some(validator) = ctx.get_validator("$ref") {
-                    if let Err(err) = validator(
+                    validator(
                         ctx,
                         instance,
                         schema_object.get("$ref").unwrap(),
                         schema_object,
                         stack,
-                    ) {
-                        return Err(err);
-                    }
+                    )?;
                 }
             } else {
                 for (k, v) in schema_object.iter() {
@@ -87,8 +87,15 @@ fn descend(
     schema_key: Option<&String>,
     stack: &ScopeStack,
 ) -> ValidatorResult {
-
-    if let Err(mut err) = run_validators(ctx, instance, schema, &ScopeStack { x: schema, parent: Some(stack) }) {
+    if let Err(mut err) = run_validators(
+        ctx,
+        instance,
+        schema,
+        &ScopeStack {
+            x: schema,
+            parent: Some(stack),
+        },
+    ) {
         if let Some(instance_key) = instance_key {
             err.add_instance_path(instance_key);
         }
@@ -149,30 +156,29 @@ fn find_additional_properties<'a>(
     instance: &'a Map<String, Value>,
     schema: &'a Map<String, Value>,
 ) -> Result<Box<Iterator<Item = &'a String> + 'a>, ValidationError> {
-    lazy_static! {
-        static ref EMPTY_OBJ: Value = Value::Object(Map::new());
-    }
-    let properties = schema.get("properties").unwrap_or_else(move || &EMPTY_OBJ);
-    let pattern_properties = schema
+    let properties = schema.get("properties").and_then(|x| x.as_object());
+    let pattern_regexes = schema
         .get("patternProperties")
-        .unwrap_or_else(move || &EMPTY_OBJ);
-    if let Value::Object(properties) = properties {
-        if let Value::Object(pattern_properties) = pattern_properties {
-            let pattern_regexes_result: Result<Vec<regex::Regex>, regex::Error> =
-                pattern_properties
-                    .keys()
-                    .map(|k| regex::Regex::new(k))
-                    .collect();
-            let pattern_regexes = pattern_regexes_result?;
-            return Ok(Box::new(
-                instance
-                    .keys()
-                    .filter(move |&property| !properties.contains_key(property))
-                    .filter(move |&property| !pattern_regexes.iter().any(|x| x.is_match(property))),
-            ));
-        }
-    }
-    Ok(Box::new(instance.keys()))
+        .and_then(|x| x.as_object())
+        .and_then(|x| {
+            Some(
+                x.keys()
+                    .filter_map(|k| regex::Regex::new(k).ok())
+                    .collect::<Vec<regex::Regex>>(),
+            )
+        });
+    Ok(Box::new(
+        instance
+            .keys()
+            .filter(move |&property| {
+                !properties.map_or_else(|| false, |x| x.contains_key(property))
+            })
+            .filter(move |&property| {
+                !pattern_regexes
+                    .as_ref()
+                    .map_or_else(|| false, |x| x.iter().any(|y| y.is_match(property)))
+            }),
+    ))
 }
 
 pub fn validate_additionalProperties(
@@ -199,7 +205,7 @@ pub fn validate_additionalProperties(
             }
             Value::Bool(bool) => {
                 if !bool {
-                    if let Some(_) = extras.next() {
+                    if extras.next().is_some() {
                         return Err(ValidationError::new(
                             "Additional properties are not allowed",
                         ));
@@ -212,7 +218,35 @@ pub fn validate_additionalProperties(
     Ok(())
 }
 
-// TODO: items_draft3/4
+pub fn validate_items_draft4(
+    ctx: &Context,
+    instance: &Value,
+    schema: &Value,
+    _parent_schema: &Map<String, Value>,
+    stack: &ScopeStack,
+) -> ValidatorResult {
+    if let Value::Array(instance) = instance {
+        match schema {
+            Value::Object(_) => for (index, item) in instance.iter().enumerate() {
+                descend(ctx, item, schema, Some(&index.to_string()), None, stack)?;
+            },
+            Value::Array(items) => {
+                for ((index, item), subschema) in instance.iter().enumerate().zip(items.iter()) {
+                    descend(
+                        ctx,
+                        item,
+                        subschema,
+                        Some(&index.to_string()),
+                        Some(&index.to_string()),
+                        stack,
+                    )?;
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
 
 pub fn validate_items(
     ctx: &Context,
@@ -260,10 +294,10 @@ pub fn validate_additionalItems(
     }
 
     if let Value::Array(instance) = instance {
-        let len_items = parent_schema.get("items").map_or(0, |x| match x {
-            Value::Array(array) => array.len(),
-            _ => 0,
-        });
+        let len_items = parent_schema
+            .get("items")
+            .and_then(|x| x.as_array())
+            .map_or_else(|| 0, |x| x.len());
         match schema {
             Value::Object(_) => for i in len_items..instance.len() {
                 descend(ctx, &instance[i], schema, Some(&i.to_string()), None, stack)?;
@@ -347,6 +381,29 @@ pub fn validate_exclusiveMaximum(
     Ok(())
 }
 
+pub fn validate_minimum_draft4(
+    _ctx: &Context,
+    instance: &Value,
+    schema: &Value,
+    parent_schema: &Map<String, Value>,
+    _stack: &ScopeStack,
+) -> ValidatorResult {
+    if let Value::Number(instance) = instance {
+        if let Value::Number(minimum) = schema {
+            if instance.as_f64() < minimum.as_f64()
+                || (parent_schema
+                    .get("exclusiveMinimum")
+                    .and_then(|x| x.as_bool())
+                    .unwrap_or_else(|| false)
+                    && instance.as_f64() <= minimum.as_f64())
+            {
+                return Err(ValidationError::new("minimum"));
+            }
+        }
+    }
+    Ok(())
+}
+
 pub fn validate_minimum(
     _ctx: &Context,
     instance: &Value,
@@ -358,6 +415,29 @@ pub fn validate_minimum(
         if let Value::Number(schema) = schema {
             if instance.as_f64() < schema.as_f64() {
                 return Err(ValidationError::new("minimum"));
+            }
+        }
+    }
+    Ok(())
+}
+
+pub fn validate_maximum_draft4(
+    _ctx: &Context,
+    instance: &Value,
+    schema: &Value,
+    parent_schema: &Map<String, Value>,
+    _stack: &ScopeStack,
+) -> ValidatorResult {
+    if let Value::Number(instance) = instance {
+        if let Value::Number(maximum) = schema {
+            if instance.as_f64() > maximum.as_f64()
+                || (parent_schema
+                    .get("exclusiveMinimum")
+                    .and_then(|x| x.as_bool())
+                    .unwrap_or_else(|| false)
+                    && instance.as_f64() >= maximum.as_f64())
+            {
+                return Err(ValidationError::new("maximum"));
             }
         }
     }
@@ -530,7 +610,6 @@ pub fn validate_dependencies(
                     _ => {
                         for dep0 in util::iter_or_once(dep) {
                             if let Value::String(key) = dep0 {
-                                println!("key {}", key);
                                 if !object.contains_key(key) {
                                     return Err(ValidationError::new("dependency"));
                                 }
@@ -725,6 +804,28 @@ pub fn validate_maxProperties(
     Ok(())
 }
 
+pub fn validate_allOf_draft4(
+    ctx: &Context,
+    instance: &Value,
+    schema: &Value,
+    _parent_schema: &Map<String, Value>,
+    stack: &ScopeStack,
+) -> ValidatorResult {
+    if let Value::Array(schema) = schema {
+        for (index, subschema) in schema.iter().enumerate() {
+            descend(
+                ctx,
+                instance,
+                subschema,
+                None,
+                Some(&index.to_string()),
+                stack,
+            )?;
+        }
+    }
+    Ok(())
+}
+
 pub fn validate_allOf(
     ctx: &Context,
     instance: &Value,
@@ -744,6 +845,32 @@ pub fn validate_allOf(
                 stack,
             )?;
         }
+    }
+    Ok(())
+}
+
+pub fn validate_anyOf_draft4(
+    ctx: &Context,
+    instance: &Value,
+    schema: &Value,
+    _parent_schema: &Map<String, Value>,
+    stack: &ScopeStack,
+) -> ValidatorResult {
+    if let Value::Array(schema) = schema {
+        for (index, subschema) in schema.iter().enumerate() {
+            if descend(
+                ctx,
+                instance,
+                subschema,
+                None,
+                Some(&index.to_string()),
+                stack,
+            ).is_ok()
+            {
+                return Ok(());
+            }
+        }
+        return Err(ValidationError::new("anyOf"));
     }
     Ok(())
 }
@@ -772,6 +899,52 @@ pub fn validate_anyOf(
             }
         }
         return Err(ValidationError::new("anyOf"));
+    }
+    Ok(())
+}
+
+pub fn validate_oneOf_draft4(
+    ctx: &Context,
+    instance: &Value,
+    schema: &Value,
+    _parent_schema: &Map<String, Value>,
+    stack: &ScopeStack,
+) -> ValidatorResult {
+    if let Value::Array(schema) = schema {
+        let mut oneOf = schema.into_iter();
+        let mut found_one = false;
+        for (index, subschema) in oneOf.by_ref().enumerate() {
+            if descend(
+                ctx,
+                instance,
+                subschema,
+                None,
+                Some(&index.to_string()),
+                stack,
+            ).is_ok()
+            {
+                found_one = true;
+                break;
+            }
+        }
+
+        if !found_one {
+            return Err(ValidationError::new("Nothing matched in oneOf"));
+        }
+
+        for (index, subschema) in oneOf.by_ref().enumerate() {
+            if descend(
+                ctx,
+                instance,
+                subschema,
+                None,
+                Some(&index.to_string()),
+                stack,
+            ).is_ok()
+            {
+                return Err(ValidationError::new("More than one matched in oneOf"));
+            }
+        }
     }
     Ok(())
 }
@@ -845,12 +1018,13 @@ pub fn validate_ref(
     stack: &ScopeStack,
 ) -> ValidatorResult {
     if let Value::String(sref) = schema {
-        let (scope, resolved) = ctx.get_resolver().resolve_fragment(sref, stack, ctx.get_schema())?;
-        println!("Resolved {:?}", resolved);
+        let (scope, resolved) = ctx
+            .get_resolver()
+            .resolve_fragment(sref, stack, ctx.get_schema())?;
         let scope_schema = json!({"$id": scope.to_string()});
         let new_stack = ScopeStack {
             x: &scope_schema,
-            parent: Some(stack)
+            parent: Some(stack),
         };
         descend(ctx, instance, resolved, None, None, &new_stack)?
     }

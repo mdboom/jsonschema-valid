@@ -9,7 +9,7 @@ use validators::Validator;
 pub struct Context<'a> {
     schema: &'a Value,
     resolver: Resolver<'a>,
-    draft: Box<schemas::Draft>
+    draft: &'a schemas::Draft,
 }
 
 impl<'a> Context<'a> {
@@ -18,10 +18,18 @@ impl<'a> Context<'a> {
     }
 
     pub fn validate(&self, instance: &Value, schema: &Value) -> validators::ValidatorResult {
-        validators::run_validators(self, instance, schema, &validators::ScopeStack { x: &schema, parent: None })
+        validators::run_validators(
+            self,
+            instance,
+            schema,
+            &validators::ScopeStack {
+                x: &schema,
+                parent: None,
+            },
+        )
     }
 
-    pub fn get_resolver(&self) -> &Resolver {
+    pub fn get_resolver(&self) -> &Resolver<'a> {
         &self.resolver
     }
 
@@ -29,13 +37,15 @@ impl<'a> Context<'a> {
         &self.schema
     }
 
-    pub fn from_schema(schema: &'a Value) -> Result<Context, ValidationError> {
-        Ok(
-            Context {
-                schema: schema,
-                resolver: Resolver::from_schema(schema)?,
-                draft: schemas::draft_from_schema(schema).unwrap_or_else(|| Box::new(schemas::Draft6))
-            }
-        )
+    pub fn from_schema(
+        schema: &'a Value,
+        draft: Option<&'a schemas::Draft>
+    ) -> Result<Context<'a>, ValidationError> {
+        Ok(Context {
+            schema,
+            resolver: Resolver::from_schema(schema)?,
+            draft: schemas::draft_from_schema(schema)
+                .unwrap_or_else(|| draft.unwrap_or_else(|| &schemas::Draft6)),
+        })
     }
 }

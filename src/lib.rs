@@ -16,8 +16,8 @@ mod unique;
 mod util;
 mod validators;
 
-pub fn validate(instance: &Value, schema: &Value) -> validators::ValidatorResult {
-    context::Context::from_schema(schema)?.validate(instance, schema)
+pub fn validate(instance: &Value, schema: &Value, draft: Option<&schemas::Draft>) -> validators::ValidatorResult {
+    context::Context::from_schema(schema, draft)?.validate(instance, schema)
 }
 
 // pub fn validate_schema(schema: &Value) -> validators::ValidatorResult {
@@ -30,9 +30,8 @@ mod tests {
 
     use std::fs;
 
-    #[test]
-    fn suite() {
-        let paths = fs::read_dir("../JSON-Schema-Test-Suite/tests/draft6").unwrap();
+    fn test_draft(path: &str, draft: &schemas::Draft) {
+        let paths = fs::read_dir(path).unwrap();
 
         for entry in paths {
             let path = &entry.unwrap().path();
@@ -55,12 +54,25 @@ mod tests {
                         let data = test.get("data").unwrap();
                         let valid = test.get("valid").unwrap();
                         if let Value::Bool(is_valid) = valid {
-                            println!("{:?}", validate(&data, &schema));
-                            assert_eq!(validate(&data, &schema).is_ok(), *is_valid);
+                            let result = validate(&data, &schema, Some(draft));
+                            if !result.is_ok() {
+                                println!("{:?}", result);
+                            }
+                            assert_eq!(result.is_ok(), *is_valid);
                         }
                     }
                 }
             }
         }
     }
+
+    #[test]
+    fn test_draft6() {
+        test_draft("../JSON-Schema-Test-Suite/tests/draft6", &schemas::Draft6);
+    }
+
+    // #[test]
+    // fn test_draft4() {
+    //     test_draft("../JSON-Schema-Test-Suite/tests/draft4", &schemas::Draft4);
+    // }
 }
