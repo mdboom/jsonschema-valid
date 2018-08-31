@@ -344,9 +344,6 @@ pub fn validate_contains(
     Ok(())
 }
 
-// TODO: minimum draft 3/4
-// TODO: maximum draft 3/4
-
 pub fn validate_exclusiveMinimum(
     _ctx: &Context,
     instance: &Value,
@@ -390,13 +387,16 @@ pub fn validate_minimum_draft4(
 ) -> ValidatorResult {
     if let Value::Number(instance) = instance {
         if let Value::Number(minimum) = schema {
-            if instance.as_f64() < minimum.as_f64()
-                || (parent_schema
-                    .get("exclusiveMinimum")
-                    .and_then(|x| x.as_bool())
-                    .unwrap_or_else(|| false)
-                    && instance.as_f64() <= minimum.as_f64())
+            let failed = if parent_schema
+                .get("exclusiveMinimum")
+                .and_then(|x| x.as_bool())
+                .unwrap_or_else(|| false)
             {
+                instance.as_f64() <= minimum.as_f64()
+            } else {
+                instance.as_f64() < minimum.as_f64()
+            };
+            if failed {
                 return Err(ValidationError::new("minimum"));
             }
         }
@@ -430,13 +430,16 @@ pub fn validate_maximum_draft4(
 ) -> ValidatorResult {
     if let Value::Number(instance) = instance {
         if let Value::Number(maximum) = schema {
-            if instance.as_f64() > maximum.as_f64()
-                || (parent_schema
-                    .get("exclusiveMinimum")
-                    .and_then(|x| x.as_bool())
-                    .unwrap_or_else(|| false)
-                    && instance.as_f64() >= maximum.as_f64())
+            let failed = if parent_schema
+                .get("exclusiveMaximum")
+                .and_then(|x| x.as_bool())
+                .unwrap_or_else(|| false)
             {
+                instance.as_f64() >= maximum.as_f64()
+            } else {
+                instance.as_f64() > maximum.as_f64()
+            };
+            if failed {
                 return Err(ValidationError::new("maximum"));
             }
         }

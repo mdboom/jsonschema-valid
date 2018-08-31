@@ -71,8 +71,8 @@ mod tests {
         test_draft("../JSON-Schema-Test-Suite/tests/draft6", &schemas::Draft6);
     }
 
-    // #[test]
-    // fn test_draft4() {
-    //     test_draft("../JSON-Schema-Test-Suite/tests/draft4", &schemas::Draft4);
-    // }
+    #[test]
+    fn test_draft4() {
+        test_draft("../JSON-Schema-Test-Suite/tests/draft4", &schemas::Draft4);
+    }
 }

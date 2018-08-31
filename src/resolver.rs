@@ -9,7 +9,7 @@ use validators;
 
 fn id_of(schema: &Value) -> Option<&str> {
     if let Value::Object(object) = schema {
-        object.get("$id").and_then(|x| x.as_str())
+        object.get("$id").or_else(|| object.get("id")).and_then(|x| x.as_str())
     } else {
         None
     }
