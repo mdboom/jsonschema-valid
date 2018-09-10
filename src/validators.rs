@@ -2,7 +2,7 @@
 
 use regex;
 
-use serde_json::{Map, Value};
+use serde_json::{Map, Value, Value::Array, Value::Bool, Value::Number, Value::Object};
 
 use context::Context;
 use error::ValidationError;
@@ -33,14 +33,14 @@ pub fn run_validators<'a>(
     stack: &ScopeStack<'a>,
 ) -> ValidatorResult {
     match schema {
-        Value::Bool(b) => {
+        Bool(b) => {
             if *b {
                 Ok(())
             } else {
                 Err(ValidationError::new("False schema always fails"))
             }
         }
-        Value::Object(schema_object) => {
+        Object(schema_object) => {
             if schema_object.contains_key("$ref") {
                 if let Some(validator) = ctx.get_validator("$ref") {
                     validator(
@@ -115,14 +115,12 @@ pub fn validate_patternProperties(
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Object(instance) = instance {
-        if let Value::Object(schema) = schema {
-            for (pattern, subschema) in schema.iter() {
-                let re = regex::Regex::new(pattern)?;
-                for (k, v) in instance.iter() {
-                    if re.is_match(k) {
-                        descend(ctx, v, subschema, Some(k), Some(pattern), stack)?;
-                    }
+    if let (Object(instance), Object(schema)) = (instance, schema) {
+        for (pattern, subschema) in schema.iter() {
+            let re = regex::Regex::new(pattern)?;
+            for (k, v) in instance.iter() {
+                if re.is_match(k) {
+                    descend(ctx, v, subschema, Some(k), Some(pattern), stack)?;
                 }
             }
         }
@@ -137,7 +135,7 @@ pub fn validate_propertyNames(
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Object(instance) = instance {
+    if let Object(instance) = instance {
         for property in instance.keys() {
             descend(
                 ctx,
@@ -188,10 +186,10 @@ pub fn validate_additionalProperties(
     parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Object(instance) = instance {
+    if let Object(instance) = instance {
         let mut extras = find_additional_properties(instance, parent_schema)?;
         match schema {
-            Value::Object(_) => {
+            Object(_) => {
                 for extra in extras {
                     descend(
                         ctx,
@@ -203,7 +201,7 @@ pub fn validate_additionalProperties(
                     )?;
                 }
             }
-            Value::Bool(bool) => {
+            Bool(bool) => {
                 if !bool {
                     if extras.next().is_some() {
                         return Err(ValidationError::new(
@@ -225,12 +223,12 @@ pub fn validate_items_draft4(
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Array(instance) = instance {
+    if let Array(instance) = instance {
         match schema {
-            Value::Object(_) => for (index, item) in instance.iter().enumerate() {
+            Object(_) => for (index, item) in instance.iter().enumerate() {
                 descend(ctx, item, schema, Some(&index.to_string()), None, stack)?;
             },
-            Value::Array(items) => {
+            Array(items) => {
                 for ((index, item), subschema) in instance.iter().enumerate().zip(items.iter()) {
                     descend(
                         ctx,
@@ -255,14 +253,14 @@ pub fn validate_items(
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Array(instance) = instance {
+    if let Array(instance) = instance {
         let items = util::bool_to_object_schema(schema);
 
         match items {
-            Value::Object(_) => for (index, item) in instance.iter().enumerate() {
+            Object(_) => for (index, item) in instance.iter().enumerate() {
                 descend(ctx, item, items, Some(&index.to_string()), None, stack)?;
             },
-            Value::Array(items) => {
+            Array(items) => {
                 for ((index, item), subschema) in instance.iter().enumerate().zip(items.iter()) {
                     descend(
                         ctx,
@@ -289,20 +287,20 @@ pub fn validate_additionalItems(
 ) -> ValidatorResult {
     if !parent_schema.contains_key("items") {
         return Ok(());
-    } else if let Value::Object(_) = parent_schema["items"] {
+    } else if let Object(_) = parent_schema["items"] {
         return Ok(());
     }
 
-    if let Value::Array(instance) = instance {
+    if let Array(instance) = instance {
         let len_items = parent_schema
             .get("items")
             .and_then(|x| x.as_array())
             .map_or_else(|| 0, |x| x.len());
         match schema {
-            Value::Object(_) => for i in len_items..instance.len() {
+            Object(_) => for i in len_items..instance.len() {
                 descend(ctx, &instance[i], schema, Some(&i.to_string()), None, stack)?;
             },
-            Value::Bool(b) => if !b && instance.len() > len_items {
+            Bool(b) => if !b && instance.len() > len_items {
                 return Err(ValidationError::new("Additional items are not allowed"));
             },
             _ => {}
@@ -331,7 +329,7 @@ pub fn validate_contains(
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Array(instance) = instance {
+    if let Array(instance) = instance {
         if !instance
             .iter()
             .any(|element| is_valid(ctx, element, schema))
@@ -351,11 +349,9 @@ pub fn validate_exclusiveMinimum(
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Number(instance) = instance {
-        if let Value::Number(schema) = schema {
-            if instance.as_f64() <= schema.as_f64() {
-                return Err(ValidationError::new("exclusiveMinimum"));
-            }
+    if let (Number(instance), Number(schema)) = (instance, schema) {
+        if instance.as_f64() <= schema.as_f64() {
+            return Err(ValidationError::new("exclusiveMinimum"));
         }
     }
     Ok(())
@@ -368,11 +364,9 @@ pub fn validate_exclusiveMaximum(
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Number(instance) = instance {
-        if let Value::Number(schema) = schema {
-            if instance.as_f64() >= schema.as_f64() {
-                return Err(ValidationError::new("exclusiveMaximum"));
-            }
+    if let (Number(instance), Number(schema)) = (instance, schema) {
+        if instance.as_f64() >= schema.as_f64() {
+            return Err(ValidationError::new("exclusiveMaximum"));
         }
     }
     Ok(())
@@ -385,20 +379,18 @@ pub fn validate_minimum_draft4(
     parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Number(instance) = instance {
-        if let Value::Number(minimum) = schema {
-            let failed = if parent_schema
-                .get("exclusiveMinimum")
-                .and_then(|x| x.as_bool())
-                .unwrap_or_else(|| false)
-            {
-                instance.as_f64() <= minimum.as_f64()
-            } else {
-                instance.as_f64() < minimum.as_f64()
-            };
-            if failed {
-                return Err(ValidationError::new("minimum"));
-            }
+    if let (Number(instance), Number(minimum)) = (instance, schema) {
+        let failed = if parent_schema
+            .get("exclusiveMinimum")
+            .and_then(|x| x.as_bool())
+            .unwrap_or_else(|| false)
+        {
+            instance.as_f64() <= minimum.as_f64()
+        } else {
+            instance.as_f64() < minimum.as_f64()
+        };
+        if failed {
+            return Err(ValidationError::new("minimum"));
         }
     }
     Ok(())
@@ -411,11 +403,9 @@ pub fn validate_minimum(
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Number(instance) = instance {
-        if let Value::Number(schema) = schema {
-            if instance.as_f64() < schema.as_f64() {
-                return Err(ValidationError::new("minimum"));
-            }
+    if let (Number(instance), Number(schema)) = (instance, schema) {
+        if instance.as_f64() < schema.as_f64() {
+            return Err(ValidationError::new("minimum"));
         }
     }
     Ok(())
@@ -428,20 +418,18 @@ pub fn validate_maximum_draft4(
     parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Number(instance) = instance {
-        if let Value::Number(maximum) = schema {
-            let failed = if parent_schema
-                .get("exclusiveMaximum")
-                .and_then(|x| x.as_bool())
-                .unwrap_or_else(|| false)
-            {
-                instance.as_f64() >= maximum.as_f64()
-            } else {
-                instance.as_f64() > maximum.as_f64()
-            };
-            if failed {
-                return Err(ValidationError::new("maximum"));
-            }
+    if let (Number(instance), Number(maximum)) = (instance, schema) {
+        let failed = if parent_schema
+            .get("exclusiveMaximum")
+            .and_then(|x| x.as_bool())
+            .unwrap_or_else(|| false)
+        {
+            instance.as_f64() >= maximum.as_f64()
+        } else {
+            instance.as_f64() > maximum.as_f64()
+        };
+        if failed {
+            return Err(ValidationError::new("maximum"));
         }
     }
     Ok(())
@@ -454,11 +442,9 @@ pub fn validate_maximum(
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Number(instance) = instance {
-        if let Value::Number(schema) = schema {
-            if instance.as_f64() > schema.as_f64() {
-                return Err(ValidationError::new("maximum"));
-            }
+    if let (Number(instance), Number(schema)) = (instance, schema) {
+        if instance.as_f64() > schema.as_f64() {
+            return Err(ValidationError::new("maximum"));
         }
     }
     Ok(())
@@ -471,19 +457,17 @@ pub fn validate_multipleOf(
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Number(instance) = instance {
-        if let Value::Number(schema) = schema {
-            let failed = if schema.is_f64() {
-                let quotient = instance.as_f64().unwrap() / schema.as_f64().unwrap();
-                quotient.trunc() != quotient
-            } else if schema.is_u64() {
-                (instance.as_u64().unwrap() % schema.as_u64().unwrap()) != 0
-            } else {
-                (instance.as_i64().unwrap() % schema.as_i64().unwrap()) != 0
-            };
-            if failed {
-                return Err(ValidationError::new("not multipleOf"));
-            }
+    if let (Number(instance), Number(schema)) = (instance, schema) {
+        let failed = if schema.is_f64() {
+            let quotient = instance.as_f64().unwrap() / schema.as_f64().unwrap();
+            quotient.trunc() != quotient
+        } else if schema.is_u64() {
+            (instance.as_u64().unwrap() % schema.as_u64().unwrap()) != 0
+        } else {
+            (instance.as_i64().unwrap() % schema.as_i64().unwrap()) != 0
+        };
+        if failed {
+            return Err(ValidationError::new("not multipleOf"));
         }
     }
     Ok(())
@@ -496,11 +480,9 @@ pub fn validate_minItems(
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Array(instance) = instance {
-        if let Value::Number(schema) = schema {
-            if instance.len() < schema.as_u64().unwrap() as usize {
-                return Err(ValidationError::new("minItems"));
-            }
+    if let (Array(instance), Number(schema)) = (instance, schema) {
+        if instance.len() < schema.as_u64().unwrap() as usize {
+            return Err(ValidationError::new("minItems"));
         }
     }
     Ok(())
@@ -513,11 +495,9 @@ pub fn validate_maxItems(
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Array(instance) = instance {
-        if let Value::Number(schema) = schema {
-            if instance.len() > schema.as_u64().unwrap() as usize {
-                return Err(ValidationError::new("minItems"));
-            }
+    if let (Array(instance), Number(schema)) = (instance, schema) {
+        if instance.len() > schema.as_u64().unwrap() as usize {
+            return Err(ValidationError::new("minItems"));
         }
     }
     Ok(())
@@ -530,11 +510,9 @@ pub fn validate_uniqueItems(
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Array(instance) = instance {
-        if let Value::Bool(b) = schema {
-            if *b && !unique::has_unique_elements(&mut instance.iter()) {
-                return Err(ValidationError::new("uniqueItems"));
-            }
+    if let (Array(instance), Bool(schema)) = (instance, schema) {
+        if *schema && !unique::has_unique_elements(&mut instance.iter()) {
+            return Err(ValidationError::new("uniqueItems"));
         }
     }
     Ok(())
@@ -547,11 +525,9 @@ pub fn validate_pattern(
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::String(instance) = instance {
-        if let Value::String(schema) = schema {
-            if !regex::Regex::new(schema)?.is_match(instance) {
-                return Err(ValidationError::new("pattern"));
-            }
+    if let (Value::String(instance), Value::String(schema)) = (instance, schema) {
+        if !regex::Regex::new(schema)?.is_match(instance) {
+            return Err(ValidationError::new("pattern"));
         }
     }
     Ok(())
@@ -564,12 +540,10 @@ pub fn validate_format(
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::String(instance) = instance {
-        if let Value::String(schema) = schema {
-            if let Some(checker) = ctx.get_format_checker(schema) {
-                if !checker(ctx, instance) {
-                    return Err(ValidationError::new("format"));
-                }
+    if let (Value::String(instance), Value::String(schema)) = (instance, schema) {
+        if let Some(checker) = ctx.get_format_checker(schema) {
+            if !checker(ctx, instance) {
+                return Err(ValidationError::new("format"));
             }
         }
     }
@@ -583,11 +557,9 @@ pub fn validate_minLength(
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::String(instance) = instance {
-        if let Value::Number(schema) = schema {
-            if instance.chars().count() < schema.as_u64().unwrap() as usize {
-                return Err(ValidationError::new("minLength"));
-            }
+    if let (Value::String(instance), Number(schema)) = (instance, schema) {
+        if instance.chars().count() < schema.as_u64().unwrap() as usize {
+            return Err(ValidationError::new("minLength"));
         }
     }
     Ok(())
@@ -600,11 +572,9 @@ pub fn validate_maxLength(
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::String(instance) = instance {
-        if let Value::Number(schema) = schema {
-            if instance.chars().count() > schema.as_u64().unwrap() as usize {
-                return Err(ValidationError::new("maxLength"));
-            }
+    if let (Value::String(instance), Number(schema)) = (instance, schema) {
+        if instance.chars().count() > schema.as_u64().unwrap() as usize {
+            return Err(ValidationError::new("maxLength"));
         }
     }
     Ok(())
@@ -617,22 +587,20 @@ pub fn validate_dependencies(
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Object(object) = instance {
-        if let Value::Object(schema) = schema {
-            for (property, dependency) in schema.iter() {
-                if !object.contains_key(property) {
-                    continue;
-                }
+    if let (Object(object), Object(schema)) = (instance, schema) {
+        for (property, dependency) in schema.iter() {
+            if !object.contains_key(property) {
+                continue;
+            }
 
-                let dep = util::bool_to_object_schema(dependency);
-                match dep {
-                    Value::Object(_) => descend(ctx, instance, dep, None, Some(property), stack)?,
-                    _ => {
-                        for dep0 in util::iter_or_once(dep) {
-                            if let Value::String(key) = dep0 {
-                                if !object.contains_key(key) {
-                                    return Err(ValidationError::new("dependency"));
-                                }
+            let dep = util::bool_to_object_schema(dependency);
+            match dep {
+                Object(_) => descend(ctx, instance, dep, None, Some(property), stack)?,
+                _ => {
+                    for dep0 in util::iter_or_once(dep) {
+                        if let Value::String(key) = dep0 {
+                            if !object.contains_key(key) {
+                                return Err(ValidationError::new("dependency"));
                             }
                         }
                     }
@@ -650,7 +618,7 @@ pub fn validate_enum(
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Array(enums) = schema {
+    if let Array(enums) = schema {
         if !enums.iter().any(|val| val == instance) {
             return Err(ValidationError::new("enum"));
         }
@@ -658,25 +626,18 @@ pub fn validate_enum(
     Ok(())
 }
 
-// TODO: ref
-
-// TODO: type draft3
-// TODO: properties draft3
-// TODO: disallow draft3
-// TODO: extends draft3
-
 pub fn validate_single_type(instance: &Value, schema: &Value) -> ValidatorResult {
     if let Value::String(typename) = schema {
         match typename.as_ref() {
             "array" => {
-                if let Value::Array(_) = instance {
+                if let Array(_) = instance {
                     return Ok(());
                 } else {
                     return Err(ValidationError::new("array"));
                 }
             }
             "object" => {
-                if let Value::Object(_) = instance {
+                if let Object(_) = instance {
                     return Ok(());
                 } else {
                     return Err(ValidationError::new("object"));
@@ -690,7 +651,7 @@ pub fn validate_single_type(instance: &Value, schema: &Value) -> ValidatorResult
                 }
             }
             "number" => {
-                if let Value::Number(_) = instance {
+                if let Number(_) = instance {
                     return Ok(());
                 } else {
                     return Err(ValidationError::new("number"));
@@ -704,7 +665,7 @@ pub fn validate_single_type(instance: &Value, schema: &Value) -> ValidatorResult
                 }
             }
             "integer" => {
-                if let Value::Number(number) = instance {
+                if let Number(number) = instance {
                     if number.is_i64() || number.is_u64()
                         || (number.is_f64()
                             && number.as_f64().unwrap().trunc() == number.as_f64().unwrap())
@@ -715,7 +676,7 @@ pub fn validate_single_type(instance: &Value, schema: &Value) -> ValidatorResult
                 return Err(ValidationError::new("integer"));
             }
             "boolean" => {
-                if let Value::Bool(_) = instance {
+                if let Bool(_) = instance {
                     return Ok(());
                 } else {
                     return Err(ValidationError::new("boolean"));
@@ -747,19 +708,17 @@ pub fn validate_properties(
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Object(instance) = instance {
-        if let Value::Object(schema) = schema {
-            for (property, subschema) in schema.iter() {
-                if instance.contains_key(property) {
-                    descend(
-                        ctx,
-                        instance.get(property).unwrap(),
-                        subschema,
-                        Some(property),
-                        Some(property),
-                        stack,
-                    )?;
-                }
+    if let (Object(instance), Object(schema)) = (instance, schema) {
+        for (property, subschema) in schema.iter() {
+            if instance.contains_key(property) {
+                descend(
+                    ctx,
+                    instance.get(property).unwrap(),
+                    subschema,
+                    Some(property),
+                    Some(property),
+                    stack,
+                )?;
             }
         }
     }
@@ -773,16 +732,14 @@ pub fn validate_required(
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Object(instance) = instance {
-        if let Value::Array(schema) = schema {
-            for property in schema.iter() {
-                if let Value::String(key) = property {
-                    if !instance.contains_key(key) {
-                        return Err(ValidationError::new(&format!(
-                            "required property '{}' missing",
-                            key
-                        )));
-                    }
+    if let (Object(instance), Array(schema)) = (instance, schema) {
+        for property in schema.iter() {
+            if let Value::String(key) = property {
+                if !instance.contains_key(key) {
+                    return Err(ValidationError::new(&format!(
+                        "required property '{}' missing",
+                        key
+                    )));
                 }
             }
         }
@@ -797,11 +754,9 @@ pub fn validate_minProperties(
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Object(instance) = instance {
-        if let Value::Number(schema) = schema {
-            if instance.len() < schema.as_u64().unwrap() as usize {
-                return Err(ValidationError::new("minProperties"));
-            }
+    if let (Object(instance), Number(schema)) = (instance, schema) {
+        if instance.len() < schema.as_u64().unwrap() as usize {
+            return Err(ValidationError::new("minProperties"));
         }
     }
     Ok(())
@@ -814,11 +769,9 @@ pub fn validate_maxProperties(
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Object(instance) = instance {
-        if let Value::Number(schema) = schema {
-            if instance.len() > schema.as_u64().unwrap() as usize {
-                return Err(ValidationError::new("maxProperties"));
-            }
+    if let (Object(instance), Number(schema)) = (instance, schema) {
+        if instance.len() > schema.as_u64().unwrap() as usize {
+            return Err(ValidationError::new("maxProperties"));
         }
     }
     Ok(())
@@ -831,7 +784,7 @@ pub fn validate_allOf_draft4(
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Array(schema) = schema {
+    if let Array(schema) = schema {
         for (index, subschema) in schema.iter().enumerate() {
             descend(
                 ctx,
@@ -853,7 +806,7 @@ pub fn validate_allOf(
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Array(schema) = schema {
+    if let Array(schema) = schema {
         for (index, subschema) in schema.iter().enumerate() {
             let subschema0 = util::bool_to_object_schema(subschema);
             descend(
@@ -876,7 +829,7 @@ pub fn validate_anyOf_draft4(
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Array(schema) = schema {
+    if let Array(schema) = schema {
         for (index, subschema) in schema.iter().enumerate() {
             if descend(
                 ctx,
@@ -902,7 +855,7 @@ pub fn validate_anyOf(
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Array(schema) = schema {
+    if let Array(schema) = schema {
         for (index, subschema) in schema.iter().enumerate() {
             let subschema0 = util::bool_to_object_schema(subschema);
             // TODO Wrap up all errors into a list
@@ -930,7 +883,7 @@ pub fn validate_oneOf_draft4(
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Array(schema) = schema {
+    if let Array(schema) = schema {
         let mut oneOf = schema.into_iter();
         let mut found_one = false;
         for (index, subschema) in oneOf.by_ref().enumerate() {
@@ -976,7 +929,7 @@ pub fn validate_oneOf(
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
 ) -> ValidatorResult {
-    if let Value::Array(schema) = schema {
+    if let Array(schema) = schema {
         let mut oneOf = schema.into_iter();
         let mut found_one = false;
         for (index, subschema) in oneOf.by_ref().enumerate() {
