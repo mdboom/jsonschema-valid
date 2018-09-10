@@ -108,7 +108,7 @@ fn descend(
     }
 }
 
-pub fn validate_patternProperties(
+pub fn patternProperties(
     ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -128,7 +128,7 @@ pub fn validate_patternProperties(
     Ok(())
 }
 
-pub fn validate_propertyNames(
+pub fn propertyNames(
     ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -179,7 +179,7 @@ fn find_additional_properties<'a>(
     ))
 }
 
-pub fn validate_additionalProperties(
+pub fn additionalProperties(
     ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -216,7 +216,7 @@ pub fn validate_additionalProperties(
     Ok(())
 }
 
-pub fn validate_items_draft4(
+pub fn items_draft4(
     ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -246,7 +246,7 @@ pub fn validate_items_draft4(
     Ok(())
 }
 
-pub fn validate_items(
+pub fn items(
     ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -278,7 +278,7 @@ pub fn validate_items(
     Ok(())
 }
 
-pub fn validate_additionalItems(
+pub fn additionalItems(
     ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -309,7 +309,7 @@ pub fn validate_additionalItems(
     Ok(())
 }
 
-pub fn validate_const(
+pub fn const_(
     _ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -322,7 +322,7 @@ pub fn validate_const(
     Ok(())
 }
 
-pub fn validate_contains(
+pub fn contains(
     ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -342,7 +342,7 @@ pub fn validate_contains(
     Ok(())
 }
 
-pub fn validate_exclusiveMinimum(
+pub fn exclusiveMinimum(
     _ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -357,7 +357,7 @@ pub fn validate_exclusiveMinimum(
     Ok(())
 }
 
-pub fn validate_exclusiveMaximum(
+pub fn exclusiveMaximum(
     _ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -372,7 +372,7 @@ pub fn validate_exclusiveMaximum(
     Ok(())
 }
 
-pub fn validate_minimum_draft4(
+pub fn minimum_draft4(
     _ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -396,7 +396,7 @@ pub fn validate_minimum_draft4(
     Ok(())
 }
 
-pub fn validate_minimum(
+pub fn minimum(
     _ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -411,7 +411,7 @@ pub fn validate_minimum(
     Ok(())
 }
 
-pub fn validate_maximum_draft4(
+pub fn maximum_draft4(
     _ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -435,7 +435,7 @@ pub fn validate_maximum_draft4(
     Ok(())
 }
 
-pub fn validate_maximum(
+pub fn maximum(
     _ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -450,7 +450,7 @@ pub fn validate_maximum(
     Ok(())
 }
 
-pub fn validate_multipleOf(
+pub fn multipleOf(
     _ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -473,7 +473,7 @@ pub fn validate_multipleOf(
     Ok(())
 }
 
-pub fn validate_minItems(
+pub fn minItems(
     _ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -488,7 +488,7 @@ pub fn validate_minItems(
     Ok(())
 }
 
-pub fn validate_maxItems(
+pub fn maxItems(
     _ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -503,7 +503,7 @@ pub fn validate_maxItems(
     Ok(())
 }
 
-pub fn validate_uniqueItems(
+pub fn uniqueItems(
     _ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -518,7 +518,7 @@ pub fn validate_uniqueItems(
     Ok(())
 }
 
-pub fn validate_pattern(
+pub fn pattern(
     _ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -533,7 +533,7 @@ pub fn validate_pattern(
     Ok(())
 }
 
-pub fn validate_format(
+pub fn format(
     ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -550,7 +550,7 @@ pub fn validate_format(
     Ok(())
 }
 
-pub fn validate_minLength(
+pub fn minLength(
     _ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -565,7 +565,7 @@ pub fn validate_minLength(
     Ok(())
 }
 
-pub fn validate_maxLength(
+pub fn maxLength(
     _ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -580,7 +580,7 @@ pub fn validate_maxLength(
     Ok(())
 }
 
-pub fn validate_dependencies(
+pub fn dependencies(
     ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -611,7 +611,7 @@ pub fn validate_dependencies(
     Ok(())
 }
 
-pub fn validate_enum(
+pub fn enum_(
     _ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -626,7 +626,7 @@ pub fn validate_enum(
     Ok(())
 }
 
-pub fn validate_single_type(instance: &Value, schema: &Value) -> ValidatorResult {
+fn single_type(instance: &Value, schema: &Value) -> ValidatorResult {
     if let Value::String(typename) = schema {
         match typename.as_ref() {
             "array" => {
@@ -688,20 +688,20 @@ pub fn validate_single_type(instance: &Value, schema: &Value) -> ValidatorResult
     Ok(())
 }
 
-pub fn validate_type(
+pub fn type_(
     _ctx: &Context,
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
 ) -> ValidatorResult {
-    if !util::iter_or_once(schema).any(|x| validate_single_type(instance, x).is_ok()) {
+    if !util::iter_or_once(schema).any(|x| single_type(instance, x).is_ok()) {
         return Err(ValidationError::new("type"));
     }
     Ok(())
 }
 
-pub fn validate_properties(
+pub fn properties(
     ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -725,7 +725,7 @@ pub fn validate_properties(
     Ok(())
 }
 
-pub fn validate_required(
+pub fn required(
     _ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -747,7 +747,7 @@ pub fn validate_required(
     Ok(())
 }
 
-pub fn validate_minProperties(
+pub fn minProperties(
     _ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -762,7 +762,7 @@ pub fn validate_minProperties(
     Ok(())
 }
 
-pub fn validate_maxProperties(
+pub fn maxProperties(
     _ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -777,7 +777,7 @@ pub fn validate_maxProperties(
     Ok(())
 }
 
-pub fn validate_allOf_draft4(
+pub fn allOf_draft4(
     ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -799,7 +799,7 @@ pub fn validate_allOf_draft4(
     Ok(())
 }
 
-pub fn validate_allOf(
+pub fn allOf(
     ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -822,7 +822,7 @@ pub fn validate_allOf(
     Ok(())
 }
 
-pub fn validate_anyOf_draft4(
+pub fn anyOf_draft4(
     ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -848,7 +848,7 @@ pub fn validate_anyOf_draft4(
     Ok(())
 }
 
-pub fn validate_anyOf(
+pub fn anyOf(
     ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -876,7 +876,7 @@ pub fn validate_anyOf(
     Ok(())
 }
 
-pub fn validate_oneOf_draft4(
+pub fn oneOf_draft4(
     ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -922,7 +922,7 @@ pub fn validate_oneOf_draft4(
     Ok(())
 }
 
-pub fn validate_oneOf(
+pub fn oneOf(
     ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -970,7 +970,7 @@ pub fn validate_oneOf(
     Ok(())
 }
 
-pub fn validate_not(
+pub fn not(
     ctx: &Context,
     instance: &Value,
     schema: &Value,
@@ -983,7 +983,7 @@ pub fn validate_not(
     Ok(())
 }
 
-pub fn validate_ref(
+pub fn ref_(
     ctx: &Context,
     instance: &Value,
     schema: &Value,
