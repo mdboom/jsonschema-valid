@@ -557,7 +557,24 @@ pub fn validate_pattern(
     Ok(())
 }
 
-// TODO format
+pub fn validate_format(
+    ctx: &Context,
+    instance: &Value,
+    schema: &Value,
+    _parent_schema: &Map<String, Value>,
+    _stack: &ScopeStack,
+) -> ValidatorResult {
+    if let Value::String(instance) = instance {
+        if let Value::String(schema) = schema {
+            if let Some(checker) = ctx.get_format_checker(schema) {
+                if !checker(ctx, instance) {
+                    return Err(ValidationError::new("format"));
+                }
+            }
+        }
+    }
+    Ok(())
+}
 
 pub fn validate_minLength(
     _ctx: &Context,

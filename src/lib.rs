@@ -5,11 +5,13 @@ extern crate serde_json;
 extern crate lazy_static;
 extern crate itertools;
 extern crate url;
+extern crate chrono;
 
 use serde_json::Value;
 
 mod context;
 mod error;
+mod format;
 mod resolver;
 mod schemas;
 mod unique;

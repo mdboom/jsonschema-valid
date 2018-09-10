@@ -1,6 +1,7 @@
 use serde_json::Value;
 
 use error::ValidationError;
+use format::FormatChecker;
 use resolver::Resolver;
 use schemas;
 use validators;
@@ -15,6 +16,10 @@ pub struct Context<'a> {
 impl<'a> Context<'a> {
     pub fn get_validator(&self, key: &str) -> Option<Validator> {
         self.draft.get_validator(key)
+    }
+
+    pub fn get_format_checker(&self, key: &str) -> Option<FormatChecker> {
+        self.draft.get_format_checker(key)
     }
 
     pub fn validate(&self, instance: &Value, schema: &Value) -> validators::ValidatorResult {

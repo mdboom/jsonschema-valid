@@ -7,6 +7,8 @@ use error::ValidationError;
 use schemas;
 use validators;
 
+// TODO: Make the choice of resolver dynamic
+
 fn id_of(schema: &Value) -> Option<&str> {
     if let Value::Object(object) = schema {
         object.get("$id").or_else(|| object.get("id")).and_then(|x| x.as_str())

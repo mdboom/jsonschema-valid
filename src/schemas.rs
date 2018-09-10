@@ -1,12 +1,15 @@
 use serde_json;
 use serde_json::Value;
 
+use format;
+use format::FormatChecker;
 use validators;
 use validators::Validator;
 
 pub trait Draft {
     fn get_validator(&self, key: &str) -> Option<Validator>;
     fn get_schema(&self) -> &'static Value;
+    fn get_format_checker(&self, format: &str) -> Option<FormatChecker>;
 }
 
 pub struct Draft6;
@@ -25,6 +28,7 @@ impl Draft for Draft6 {
             "enum" => Some(validators::validate_enum as Validator),
             "exclusiveMaximum" => Some(validators::validate_exclusiveMaximum as Validator),
             "exclusiveMinimum" => Some(validators::validate_exclusiveMinimum as Validator),
+            "format" => Some(validators::validate_format as Validator),
             "items" => Some(validators::validate_items as Validator),
             "maxItems" => Some(validators::validate_maxItems as Validator),
             "maxLength" => Some(validators::validate_maxLength as Validator),
@@ -54,6 +58,22 @@ impl Draft for Draft6 {
         }
         &DRAFT6
     }
+
+    fn get_format_checker(&self, key: &str) -> Option<FormatChecker> {
+        match key {
+            "email" => Some(format::format_email as FormatChecker),
+            "ipv4" => Some(format::format_ipv4 as FormatChecker),
+            "ipv6" => Some(format::format_ipv6 as FormatChecker),
+            "hostname" => Some(format::format_hostname as FormatChecker),
+            "uri" => Some(format::format_uri as FormatChecker),
+            "uri_reference" => Some(format::format_uri_reference as FormatChecker),
+            "datetime" => Some(format::format_datetime as FormatChecker),
+            "regex" => Some(format::format_regex as FormatChecker),
+            "date" => Some(format::format_date as FormatChecker),
+            "time" => Some(format::format_time as FormatChecker),
+            _ => None,
+        }
+    }
 }
 
 pub struct Draft4;
@@ -68,6 +88,7 @@ impl Draft for Draft4 {
             "anyOf" => Some(validators::validate_anyOf_draft4 as Validator),
             "dependencies" => Some(validators::validate_dependencies as Validator),
             "enum" => Some(validators::validate_enum as Validator),
+            "format" => Some(validators::validate_format as Validator),
             "items" => Some(validators::validate_items_draft4 as Validator),
             "maxItems" => Some(validators::validate_maxItems as Validator),
             "maxLength" => Some(validators::validate_maxLength as Validator),
@@ -95,6 +116,12 @@ impl Draft for Draft4 {
             static ref DRAFT4: Value = serde_json::from_str(include_str!("draft4.json")).unwrap();
         }
         &DRAFT4
+    }
+
+    fn get_format_checker(&self, key: &str) -> Option<FormatChecker> {
+        match key {
+            _ => None,
+        }
     }
 }
 
