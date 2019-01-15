@@ -37,7 +37,7 @@ pub fn run_validators<'a>(
             if *b {
                 Ok(())
             } else {
-                Err(ValidationError::new("False schema always fails"))
+                Err(ValidationError::new("false schema always fails"))
             }
         }
         Object(schema_object) => {
@@ -777,28 +777,6 @@ pub fn maxProperties(
     Ok(())
 }
 
-pub fn allOf_draft4(
-    ctx: &Context,
-    instance: &Value,
-    schema: &Value,
-    _parent_schema: &Map<String, Value>,
-    stack: &ScopeStack,
-) -> ValidatorResult {
-    if let Array(schema) = schema {
-        for (index, subschema) in schema.iter().enumerate() {
-            descend(
-                ctx,
-                instance,
-                subschema,
-                None,
-                Some(&index.to_string()),
-                stack,
-            )?;
-        }
-    }
-    Ok(())
-}
-
 pub fn allOf(
     ctx: &Context,
     instance: &Value,
@@ -808,7 +786,11 @@ pub fn allOf(
 ) -> ValidatorResult {
     if let Array(schema) = schema {
         for (index, subschema) in schema.iter().enumerate() {
-            let subschema0 = util::bool_to_object_schema(subschema);
+            let subschema0 = if ctx.get_draft_number() >= 6 {
+                util::bool_to_object_schema(subschema)
+            } else {
+                subschema
+            };
             descend(
                 ctx,
                 instance,
@@ -818,32 +800,6 @@ pub fn allOf(
                 stack,
             )?;
         }
-    }
-    Ok(())
-}
-
-pub fn anyOf_draft4(
-    ctx: &Context,
-    instance: &Value,
-    schema: &Value,
-    _parent_schema: &Map<String, Value>,
-    stack: &ScopeStack,
-) -> ValidatorResult {
-    if let Array(schema) = schema {
-        for (index, subschema) in schema.iter().enumerate() {
-            if descend(
-                ctx,
-                instance,
-                subschema,
-                None,
-                Some(&index.to_string()),
-                stack,
-            ).is_ok()
-            {
-                return Ok(());
-            }
-        }
-        return Err(ValidationError::new("anyOf"));
     }
     Ok(())
 }
@@ -856,68 +812,28 @@ pub fn anyOf(
     stack: &ScopeStack,
 ) -> ValidatorResult {
     if let Array(schema) = schema {
+        let mut errors: Vec<ValidationError> = Vec::new();
+        errors.reserve(schema.len());
         for (index, subschema) in schema.iter().enumerate() {
-            let subschema0 = util::bool_to_object_schema(subschema);
-            // TODO Wrap up all errors into a list
-            if descend(
+            let subschema0 = if ctx.get_draft_number() >= 6 {
+                util::bool_to_object_schema(subschema)
+            } else {
+                subschema
+            };
+
+            match descend(
                 ctx,
                 instance,
                 subschema0,
                 None,
                 Some(&index.to_string()),
                 stack,
-            ).is_ok()
-            {
-                return Ok(());
+            ) {
+                Ok(_) => return Ok(()),
+                Err(err) => errors.push(err)
             }
         }
-        return Err(ValidationError::new("anyOf"));
-    }
-    Ok(())
-}
-
-pub fn oneOf_draft4(
-    ctx: &Context,
-    instance: &Value,
-    schema: &Value,
-    _parent_schema: &Map<String, Value>,
-    stack: &ScopeStack,
-) -> ValidatorResult {
-    if let Array(schema) = schema {
-        let mut oneOf = schema.into_iter();
-        let mut found_one = false;
-        for (index, subschema) in oneOf.by_ref().enumerate() {
-            if descend(
-                ctx,
-                instance,
-                subschema,
-                None,
-                Some(&index.to_string()),
-                stack,
-            ).is_ok()
-            {
-                found_one = true;
-                break;
-            }
-        }
-
-        if !found_one {
-            return Err(ValidationError::new("Nothing matched in oneOf"));
-        }
-
-        for (index, subschema) in oneOf.by_ref().enumerate() {
-            if descend(
-                ctx,
-                instance,
-                subschema,
-                None,
-                Some(&index.to_string()),
-                stack,
-            ).is_ok()
-            {
-                return Err(ValidationError::new("More than one matched in oneOf"));
-            }
-        }
+        return Err(ValidationError::from_errors("anyOf", &errors));
     }
     Ok(())
 }
@@ -932,26 +848,31 @@ pub fn oneOf(
     if let Array(schema) = schema {
         let mut oneOf = schema.into_iter();
         let mut found_one = false;
+        let mut errors: Vec<ValidationError> = Vec::new();
         for (index, subschema) in oneOf.by_ref().enumerate() {
-            let subschema0 = util::bool_to_object_schema(subschema);
-            if descend(
+            let subschema0 = if ctx.get_draft_number() >= 6 {
+                util::bool_to_object_schema(subschema)
+            } else {
+                subschema
+            };
+            match descend(
                 ctx,
                 instance,
                 subschema0,
                 None,
                 Some(&index.to_string()),
                 stack,
-            ).is_ok()
-            {
-                found_one = true;
-                break;
+            ) {
+                Ok(_) => { found_one = true; break },
+                Err(err) => errors.push(err)
             }
         }
 
         if !found_one {
-            return Err(ValidationError::new("Nothing matched in oneOf"));
+            return Err(ValidationError::from_errors("Nothing matched in oneOf", &errors));
         }
 
+        let mut found_more = false;
         for (index, subschema) in oneOf.by_ref().enumerate() {
             let subschema0 = util::bool_to_object_schema(subschema);
             if descend(
@@ -963,8 +884,12 @@ pub fn oneOf(
                 stack,
             ).is_ok()
             {
-                return Err(ValidationError::new("More than one matched in oneOf"));
+                found_more = true;
             }
+        }
+
+        if found_more {
+            return Err(ValidationError::from_errors("More than one matched in oneOf", &errors));
         }
     }
     Ok(())

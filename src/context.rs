@@ -22,6 +22,10 @@ impl<'a> Context<'a> {
         self.draft.get_format_checker(key)
     }
 
+    pub fn get_draft_number(&self) -> u8 {
+        self.draft.get_draft_number()
+    }
+
     pub fn validate(&self, instance: &Value, schema: &Value) -> validators::ValidatorResult {
         validators::run_validators(
             self,

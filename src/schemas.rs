@@ -10,6 +10,7 @@ pub trait Draft {
     fn get_validator(&self, key: &str) -> Option<Validator>;
     fn get_schema(&self) -> &'static Value;
     fn get_format_checker(&self, format: &str) -> Option<FormatChecker>;
+    fn get_draft_number(&self) -> u8;
 }
 
 pub struct Draft6;
@@ -74,6 +75,10 @@ impl Draft for Draft6 {
             _ => None,
         }
     }
+
+    fn get_draft_number(&self) -> u8 {
+        6
+    }
 }
 
 pub struct Draft4;
@@ -84,8 +89,8 @@ impl Draft for Draft4 {
             "$ref" => Some(validators::ref_ as Validator),
             "additionalItems" => Some(validators::additionalItems as Validator),
             "additionalProperties" => Some(validators::additionalProperties as Validator),
-            "allOf" => Some(validators::allOf_draft4 as Validator),
-            "anyOf" => Some(validators::anyOf_draft4 as Validator),
+            "allOf" => Some(validators::allOf as Validator),
+            "anyOf" => Some(validators::anyOf as Validator),
             "dependencies" => Some(validators::dependencies as Validator),
             "enum" => Some(validators::enum_ as Validator),
             "format" => Some(validators::format as Validator),
@@ -100,7 +105,7 @@ impl Draft for Draft4 {
             "minimum" => Some(validators::minimum_draft4 as Validator),
             "multipleOf" => Some(validators::multipleOf as Validator),
             "not" => Some(validators::not as Validator),
-            "oneOf" => Some(validators::oneOf_draft4 as Validator),
+            "oneOf" => Some(validators::oneOf as Validator),
             "pattern" => Some(validators::pattern as Validator),
             "patternProperties" => Some(validators::patternProperties as Validator),
             "properties" => Some(validators::properties as Validator),
@@ -122,6 +127,10 @@ impl Draft for Draft4 {
         match key {
             _ => None,
         }
+    }
+
+    fn get_draft_number(&self) -> u8 {
+        4
     }
 }
 

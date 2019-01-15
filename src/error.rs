@@ -2,7 +2,7 @@ use std::error;
 use std::io;
 use std::fmt;
 
-use itertools::Itertools;
+use itertools::{ Itertools, join };
 use regex;
 use url;
 
@@ -63,6 +63,15 @@ impl ValidationError {
     pub fn new(msg: &str) -> ValidationError {
         ValidationError {
             msg: String::from(msg),
+            ..Default::default()
+        }
+    }
+
+    pub fn from_errors(msg: &str, errors: &Vec<ValidationError>) -> ValidationError {
+        ValidationError {
+            msg: format!(
+                "{}: [{}\n]", msg,
+                join(errors.iter().map(|x| x.msg.as_str()), "\n    ")),
             ..Default::default()
         }
     }
