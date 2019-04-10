@@ -18,8 +18,10 @@ mod unique;
 mod util;
 mod validators;
 
-pub fn validate(instance: &Value, schema: &Value, draft: Option<&schemas::Draft>) -> Vec<error::ValidationError> {
-    context::Context::from_schema(schema, draft).unwrap().validate(instance, schema)
+pub fn validate(instance: &Value, schema: &Value, draft: Option<&schemas::Draft>) -> error::VecErrorRecorder {
+    let mut errors = error::VecErrorRecorder::new();
+    context::Context::from_schema(schema, draft).unwrap().validate(instance, schema, &mut errors);
+    errors
 }
 
 #[cfg(test)]
@@ -28,6 +30,7 @@ mod tests {
 
     use std::fs;
     use std::path::PathBuf;
+    use error::ErrorRecorder;
 
     // Test files we know will fail.
     const KNOWN_FAILURES: &'static [&'static str] = &["refRemote.json"];
@@ -61,10 +64,7 @@ mod tests {
                         let valid = test.get("valid").unwrap();
                         if let Value::Bool(is_valid) = valid {
                             let result = validate(&data, &schema, Some(draft));
-                            if result.len() != 0 {
-                                println!("{:?}", result);
-                            }
-                            assert_eq!(result.len() == 0, *is_valid);
+                            assert_eq!(!result.has_errors(), *is_valid);
                         }
                     }
                 }

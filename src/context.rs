@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use error::{ScopeStack, ValidationError};
+use error::{ErrorRecorder, ScopeStack, ValidationError};
 use format::FormatChecker;
 use resolver::Resolver;
 use schemas;
@@ -26,8 +26,7 @@ impl<'a> Context<'a> {
         self.draft.get_draft_number()
     }
 
-    pub fn validate(&self, instance: &Value, schema: &Value) -> Vec<ValidationError> {
-        let mut errors: Vec<ValidationError> = Vec::new();
+    pub fn validate(&self, instance: &Value, schema: &Value, errors: &mut ErrorRecorder) {
         validators::run_validators(
             self,
             instance,
@@ -36,9 +35,8 @@ impl<'a> Context<'a> {
                 x: &schema,
                 parent: None,
             },
-            &mut errors,
+            errors,
         );
-        errors
     }
 
     pub fn get_resolver(&self) -> &Resolver<'a> {

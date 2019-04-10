@@ -82,3 +82,31 @@ impl ValidationError {
         }
     }
 }
+
+pub trait ErrorRecorder {
+    fn record_error(&mut self, error: ValidationError);
+    fn has_errors(&self) -> bool;
+}
+
+#[derive(Default)]
+pub struct VecErrorRecorder {
+    errors: Vec<ValidationError>
+}
+
+impl ErrorRecorder for VecErrorRecorder {
+    fn record_error(&mut self, error: ValidationError) {
+        self.errors.push(error)
+    }
+
+    fn has_errors(&self) -> bool {
+        self.errors.len() != 0
+    }
+}
+
+impl VecErrorRecorder {
+    pub fn new() -> VecErrorRecorder {
+        return VecErrorRecorder {
+            ..Default::default()
+        }
+    }
+}
