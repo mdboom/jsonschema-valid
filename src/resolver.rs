@@ -63,8 +63,8 @@ impl<'a> Resolver<'a> {
         find_ids(schema, &mut id_mapping, &url::Url::parse(&base_url)?)?;
 
         Ok(Resolver {
-            base_url: base_url,
-            id_mapping: id_mapping,
+            base_url,
+            id_mapping,
         })
     }
 

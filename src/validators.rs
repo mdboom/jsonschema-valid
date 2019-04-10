@@ -202,12 +202,10 @@ pub fn additionalProperties(
                 }
             }
             Bool(bool) => {
-                if !bool {
-                    if extras.next().is_some() {
-                        return Err(ValidationError::new(
-                            "Additional properties are not allowed",
-                        ));
-                    }
+                if !bool && extras.next().is_some() {
+                    return Err(ValidationError::new(
+                        "Additional properties are not allowed",
+                    ));
                 }
             }
             _ => {}
@@ -297,8 +295,8 @@ pub fn additionalItems(
             .and_then(|x| x.as_array())
             .map_or_else(|| 0, |x| x.len());
         match schema {
-            Object(_) => for i in len_items..instance.len() {
-                descend(ctx, &instance[i], schema, Some(&i.to_string()), None, stack)?;
+            Object(_) => for (i, item) in instance.iter().enumerate().skip(len_items) {
+                descend(ctx, &item, schema, Some(&i.to_string()), None, stack)?;
             },
             Bool(b) => if !b && instance.len() > len_items {
                 return Err(ValidationError::new("Additional items are not allowed"));
@@ -450,6 +448,7 @@ pub fn maximum(
     Ok(())
 }
 
+#[allow(clippy::float_cmp)]
 pub fn multipleOf(
     _ctx: &Context,
     instance: &Value,
@@ -626,6 +625,7 @@ pub fn enum_(
     Ok(())
 }
 
+#[allow(clippy::float_cmp)]
 fn single_type(instance: &Value, schema: &Value) -> ValidatorResult {
     if let Value::String(typename) = schema {
         match typename.as_ref() {
@@ -846,7 +846,7 @@ pub fn oneOf(
     stack: &ScopeStack,
 ) -> ValidatorResult {
     if let Array(schema) = schema {
-        let mut oneOf = schema.into_iter();
+        let mut oneOf = schema.iter();
         let mut found_one = false;
         let mut errors: Vec<ValidationError> = Vec::new();
         for (index, subschema) in oneOf.by_ref().enumerate() {

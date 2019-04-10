@@ -14,7 +14,7 @@ pub type FormatChecker = fn(
 ) -> bool;
 
 pub fn email(_ctx: &Context, value: &str) -> bool {
-    value.contains("@")
+    value.contains('@')
 }
 
 pub fn ipv4(_ctx: &Context, value: &str) -> bool {

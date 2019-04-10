@@ -67,7 +67,7 @@ impl ValidationError {
         }
     }
 
-    pub fn from_errors(msg: &str, errors: &Vec<ValidationError>) -> ValidationError {
+    pub fn from_errors(msg: &str, errors: &[ValidationError]) -> ValidationError {
         ValidationError {
             msg: format!(
                 "{}: [{}\n]", msg,
