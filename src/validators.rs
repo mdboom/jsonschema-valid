@@ -74,8 +74,8 @@ fn descend(
     ctx: &Context,
     instance: &Value,
     schema: &Value,
-    instance_key: Option<&String>,
-    schema_key: Option<&String>,
+    _instance_key: Option<&String>,
+    _schema_key: Option<&String>,
     stack: &ScopeStack,
     errors: &mut ErrorRecorder,
 ) {
@@ -657,68 +657,41 @@ pub fn enum_(
 }
 
 #[allow(clippy::float_cmp)]
-fn single_type(instance: &Value, schema: &Value) -> ValidatorResult {
-    // TODO: Probably don't need a Result return here -- a Bool would do
+fn single_type(instance: &Value, schema: &Value) -> bool {
     if let Value::String(typename) = schema {
-        match typename.as_ref() {
+        return match typename.as_ref() {
             "array" => {
-                if let Array(_) = instance {
-                    return Ok(());
-                } else {
-                    return Err(ValidationError::new("array"));
-                }
+                if let Array(_) = instance { true } else { false }
             }
             "object" => {
-                if let Object(_) = instance {
-                    return Ok(());
-                } else {
-                    return Err(ValidationError::new("object"));
-                }
+                if let Object(_) = instance { true } else { false }
             }
             "null" => {
-                if let Value::Null = instance {
-                    return Ok(());
-                } else {
-                    return Err(ValidationError::new("null"));
-                }
+                if let Value::Null = instance { true } else { false }
             }
             "number" => {
-                if let Number(_) = instance {
-                    return Ok(());
-                } else {
-                    return Err(ValidationError::new("number"));
-                }
+                if let Number(_) = instance { true } else { false }
             }
             "string" => {
-                if let Value::String(_) = instance {
-                    return Ok(());
-                } else {
-                    return Err(ValidationError::new("string"));
-                }
+                if let Value::String(_) = instance { true } else { false }
             }
             "integer" => {
                 if let Number(number) = instance {
-                    if number.is_i64()
+                    number.is_i64()
                         || number.is_u64()
                         || (number.is_f64()
                             && number.as_f64().unwrap().trunc() == number.as_f64().unwrap())
-                    {
-                        return Ok(());
-                    }
+                } else {
+                    false
                 }
-                return Err(ValidationError::new("integer"));
             }
             "boolean" => {
-                if let Bool(_) = instance {
-                    return Ok(());
-                } else {
-                    return Err(ValidationError::new("boolean"));
-                }
+                if let Bool(_) = instance { true } else { false }
             }
-            _ => return Ok(()),
+            _ => true,
         }
     }
-    Ok(())
+    true
 }
 
 pub fn type_(
@@ -729,7 +702,7 @@ pub fn type_(
     _stack: &ScopeStack,
     errors: &mut ErrorRecorder,
 ) {
-    if !util::iter_or_once(schema).any(|x| single_type(instance, x).is_ok()) {
+    if !util::iter_or_once(schema).any(|x| single_type(instance, x)) {
         errors.record_error(ValidationError::new("type"));
     }
 }

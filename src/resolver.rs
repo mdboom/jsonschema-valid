@@ -5,8 +5,6 @@ use url;
 
 use error::{ScopeStack, ValidationError};
 use schemas;
-use validators;
-
 // TODO: Make the choice of resolver dynamic
 
 fn id_of(schema: &Value) -> Option<&str> {

@@ -76,7 +76,7 @@ impl ValidationError {
     pub fn from_errors(
         msg: &str,
         errors: &[ValidationError],
-        stack: &ScopeStack,
+        _stack: &ScopeStack,
     ) -> ValidationError {
         ValidationError {
             msg: format!(
@@ -105,14 +105,14 @@ impl ErrorRecorder for VecErrorRecorder {
     }
 
     fn has_errors(&self) -> bool {
-        self.errors.len() != 0
+        !self.errors.is_empty()
     }
 }
 
 impl VecErrorRecorder {
     pub fn new() -> VecErrorRecorder {
-        return VecErrorRecorder {
+        VecErrorRecorder {
             ..Default::default()
-        };
+        }
     }
 }
