@@ -5,15 +5,11 @@ use regex;
 use serde_json::{Map, Value, Value::Array, Value::Bool, Value::Number, Value::Object};
 
 use context::Context;
-use error::ValidationError;
+use error::{ScopeStack, ValidationError};
 use unique;
 use util;
 
 // TODO: Move this to another module???
-pub struct ScopeStack<'a> {
-    pub x: &'a Value,
-    pub parent: Option<&'a ScopeStack<'a>>,
-}
 
 // TODO: Move this to another module???
 pub type ValidatorResult = Result<(), ValidationError>;
@@ -24,20 +20,20 @@ pub type Validator = fn(
     schema: &Value,
     parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
-) -> ValidatorResult;
+    errors: &mut Vec<ValidationError>,
+);
 
 pub fn run_validators<'a>(
     ctx: &Context,
     instance: &Value,
     schema: &Value,
     stack: &ScopeStack<'a>,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     match schema {
         Bool(b) => {
-            if *b {
-                Ok(())
-            } else {
-                Err(ValidationError::new("false schema always fails"))
+            if !*b {
+                errors.push(ValidationError::new("false schema always fails"))
             }
         }
         Object(schema_object) => {
@@ -49,25 +45,25 @@ pub fn run_validators<'a>(
                         schema_object.get("$ref").unwrap(),
                         schema_object,
                         stack,
-                    )?;
+                        errors,
+                    );
                 }
             } else {
                 for (k, v) in schema_object.iter() {
                     if let Some(validator) = ctx.get_validator(k.as_ref()) {
-                        if let Err(mut err) = validator(ctx, instance, v, schema_object, stack) {
-                            err.add_schema_path(k);
-                            return Err(err);
-                        }
+                        validator(ctx, instance, v, schema_object, stack, errors)
                     }
                 }
             }
-            Ok(())
         }
-        _ => Err(ValidationError::new("Invalid schema")),
+        _ => {
+            errors.push(ValidationError::new("Invalid schema"))
+        }
     }
 }
 
 pub fn is_valid(ctx: &Context, instance: &Value, schema: &Value) -> bool {
+    let mut errors: Vec<ValidationError> = Vec::new();
     run_validators(
         ctx,
         instance,
@@ -76,7 +72,9 @@ pub fn is_valid(ctx: &Context, instance: &Value, schema: &Value) -> bool {
             x: schema,
             parent: None,
         },
-    ).is_ok()
+        &mut errors,
+    );
+    errors.len() == 0
 }
 
 fn descend(
@@ -86,8 +84,11 @@ fn descend(
     instance_key: Option<&String>,
     schema_key: Option<&String>,
     stack: &ScopeStack,
-) -> ValidatorResult {
-    if let Err(mut err) = run_validators(
+    errors: &mut Vec<ValidationError>,
+) {
+    // TODO: Remove this indirection
+    // TODO: Adjust scope stack accordingly
+    run_validators(
         ctx,
         instance,
         schema,
@@ -95,17 +96,8 @@ fn descend(
             x: schema,
             parent: Some(stack),
         },
-    ) {
-        if let Some(instance_key) = instance_key {
-            err.add_instance_path(instance_key);
-        }
-        if let Some(schema_key) = schema_key {
-            err.add_schema_path(schema_key);
-        }
-        Err(err)
-    } else {
-        Ok(())
-    }
+        errors,
+    )
 }
 
 pub fn patternProperties(
@@ -114,18 +106,22 @@ pub fn patternProperties(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>,
+) {
     if let (Object(instance), Object(schema)) = (instance, schema) {
         for (pattern, subschema) in schema.iter() {
-            let re = regex::Regex::new(pattern)?;
-            for (k, v) in instance.iter() {
-                if re.is_match(k) {
-                    descend(ctx, v, subschema, Some(k), Some(pattern), stack)?;
-                }
+            match regex::Regex::new(pattern) {
+                Ok(re) =>
+                    for (k, v) in instance.iter() {
+                        if re.is_match(k) {
+                            descend(ctx, v, subschema, Some(k), Some(pattern), stack, errors);
+                        }
+                    }
+                Err(err) =>
+                    errors.push(ValidationError::new(format!("{:?}", err).as_str()))
             }
         }
     }
-    Ok(())
 }
 
 pub fn propertyNames(
@@ -134,7 +130,8 @@ pub fn propertyNames(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>,
+) {
     if let Object(instance) = instance {
         for property in instance.keys() {
             descend(
@@ -144,16 +141,16 @@ pub fn propertyNames(
                 Some(property),
                 None,
                 stack,
-            )?;
+                errors,
+            );
         }
     }
-    Ok(())
 }
 
 fn find_additional_properties<'a>(
     instance: &'a Map<String, Value>,
     schema: &'a Map<String, Value>,
-) -> Result<Box<Iterator<Item = &'a String> + 'a>, ValidationError> {
+) -> Box<Iterator<Item = &'a String> + 'a> {
     let properties = schema.get("properties").and_then(|x| x.as_object());
     let pattern_regexes = schema
         .get("patternProperties")
@@ -165,7 +162,7 @@ fn find_additional_properties<'a>(
                     .collect::<Vec<regex::Regex>>(),
             )
         });
-    Ok(Box::new(
+    Box::new(
         instance
             .keys()
             .filter(move |&property| {
@@ -176,7 +173,7 @@ fn find_additional_properties<'a>(
                     .as_ref()
                     .map_or_else(|| false, |x| x.iter().any(|y| y.is_match(property)))
             }),
-    ))
+    )
 }
 
 pub fn additionalProperties(
@@ -185,33 +182,34 @@ pub fn additionalProperties(
     schema: &Value,
     parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>,
+) {
     if let Object(instance) = instance {
-        let mut extras = find_additional_properties(instance, parent_schema)?;
-        match schema {
-            Object(_) => {
-                for extra in extras {
-                    descend(
-                        ctx,
-                        instance.get(extra).expect("Property gone missing."),
-                        schema,
-                        Some(extra),
-                        None,
-                        stack,
-                    )?;
+        let extras = find_additional_properties(instance, parent_schema);
+        {
+            match schema {
+                Object(_) => {
+                    for extra in extras {
+                        descend(
+                            ctx,
+                            instance.get(extra).expect("Property gone missing."),
+                            schema,
+                            Some(extra),
+                            None,
+                            stack,
+                            errors
+                        );
+                    }
                 }
-            }
-            Bool(bool) => {
-                if !bool && extras.next().is_some() {
-                    return Err(ValidationError::new(
-                        "Additional properties are not allowed",
-                    ));
+                Bool(bool) => {
+                    if !bool && extras.peekable().peek().is_some() {
+                        errors.push(ValidationError::new(                                                                     "Additional properties are not allowed"));
+                    }
                 }
+                _ => {}
             }
-            _ => {}
         }
     }
-    Ok(())
 }
 
 pub fn items_draft4(
@@ -220,11 +218,12 @@ pub fn items_draft4(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>,
+) {
     if let Array(instance) = instance {
         match schema {
             Object(_) => for (index, item) in instance.iter().enumerate() {
-                descend(ctx, item, schema, Some(&index.to_string()), None, stack)?;
+                descend(ctx, item, schema, Some(&index.to_string()), None, stack, errors);
             },
             Array(items) => {
                 for ((index, item), subschema) in instance.iter().enumerate().zip(items.iter()) {
@@ -235,13 +234,13 @@ pub fn items_draft4(
                         Some(&index.to_string()),
                         Some(&index.to_string()),
                         stack,
-                    )?;
+                        errors,
+                    );
                 }
             }
             _ => {}
         }
     }
-    Ok(())
 }
 
 pub fn items(
@@ -250,13 +249,14 @@ pub fn items(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>,
+) {
     if let Array(instance) = instance {
         let items = util::bool_to_object_schema(schema);
 
         match items {
             Object(_) => for (index, item) in instance.iter().enumerate() {
-                descend(ctx, item, items, Some(&index.to_string()), None, stack)?;
+                descend(ctx, item, items, Some(&index.to_string()), None, stack, errors);
             },
             Array(items) => {
                 for ((index, item), subschema) in instance.iter().enumerate().zip(items.iter()) {
@@ -267,13 +267,13 @@ pub fn items(
                         Some(&index.to_string()),
                         Some(&index.to_string()),
                         stack,
-                    )?;
+                        errors,
+                    );
                 }
             }
             _ => {}
         }
     }
-    Ok(())
 }
 
 pub fn additionalItems(
@@ -282,11 +282,12 @@ pub fn additionalItems(
     schema: &Value,
     parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>,
+) {
     if !parent_schema.contains_key("items") {
-        return Ok(());
+        return;
     } else if let Object(_) = parent_schema["items"] {
-        return Ok(());
+        return;
     }
 
     if let Array(instance) = instance {
@@ -296,15 +297,14 @@ pub fn additionalItems(
             .map_or_else(|| 0, |x| x.len());
         match schema {
             Object(_) => for (i, item) in instance.iter().enumerate().skip(len_items) {
-                descend(ctx, &item, schema, Some(&i.to_string()), None, stack)?;
+                descend(ctx, &item, schema, Some(&i.to_string()), None, stack, errors);
             },
             Bool(b) => if !b && instance.len() > len_items {
-                return Err(ValidationError::new("Additional items are not allowed"));
+                errors.push(ValidationError::new("Additional items are not allowed"));
             },
             _ => {}
         }
     }
-    Ok(())
 }
 
 pub fn const_(
@@ -313,11 +313,11 @@ pub fn const_(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>,
+) {
     if instance != schema {
-        return Err(ValidationError::new("Invalid const"));
+        errors.push(ValidationError::new("Invalid const"));
     }
-    Ok(())
 }
 
 pub fn contains(
@@ -326,18 +326,18 @@ pub fn contains(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>,
+) {
     if let Array(instance) = instance {
         if !instance
             .iter()
             .any(|element| is_valid(ctx, element, schema))
         {
-            return Err(ValidationError::new(
+            errors.push(ValidationError::new(
                 "Nothing is valid under the given schema",
             ));
         }
     }
-    Ok(())
 }
 
 pub fn exclusiveMinimum(
@@ -346,13 +346,13 @@ pub fn exclusiveMinimum(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let (Number(instance), Number(schema)) = (instance, schema) {
         if instance.as_f64() <= schema.as_f64() {
-            return Err(ValidationError::new("exclusiveMinimum"));
+            errors.push(ValidationError::new("exclusiveMinimum"));
         }
     }
-    Ok(())
 }
 
 pub fn exclusiveMaximum(
@@ -361,13 +361,13 @@ pub fn exclusiveMaximum(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let (Number(instance), Number(schema)) = (instance, schema) {
         if instance.as_f64() >= schema.as_f64() {
-            return Err(ValidationError::new("exclusiveMaximum"));
+            errors.push(ValidationError::new("exclusiveMaximum"));
         }
     }
-    Ok(())
 }
 
 pub fn minimum_draft4(
@@ -376,7 +376,8 @@ pub fn minimum_draft4(
     schema: &Value,
     parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let (Number(instance), Number(minimum)) = (instance, schema) {
         let failed = if parent_schema
             .get("exclusiveMinimum")
@@ -388,10 +389,9 @@ pub fn minimum_draft4(
             instance.as_f64() < minimum.as_f64()
         };
         if failed {
-            return Err(ValidationError::new("minimum"));
+            errors.push(ValidationError::new("minimum"));
         }
     }
-    Ok(())
 }
 
 pub fn minimum(
@@ -400,13 +400,13 @@ pub fn minimum(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let (Number(instance), Number(schema)) = (instance, schema) {
         if instance.as_f64() < schema.as_f64() {
-            return Err(ValidationError::new("minimum"));
+            errors.push(ValidationError::new("minimum"));
         }
     }
-    Ok(())
 }
 
 pub fn maximum_draft4(
@@ -415,7 +415,8 @@ pub fn maximum_draft4(
     schema: &Value,
     parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let (Number(instance), Number(maximum)) = (instance, schema) {
         let failed = if parent_schema
             .get("exclusiveMaximum")
@@ -427,10 +428,9 @@ pub fn maximum_draft4(
             instance.as_f64() > maximum.as_f64()
         };
         if failed {
-            return Err(ValidationError::new("maximum"));
+            errors.push(ValidationError::new("maximum"));
         }
     }
-    Ok(())
 }
 
 pub fn maximum(
@@ -439,13 +439,13 @@ pub fn maximum(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let (Number(instance), Number(schema)) = (instance, schema) {
         if instance.as_f64() > schema.as_f64() {
-            return Err(ValidationError::new("maximum"));
+            errors.push(ValidationError::new("maximum"));
         }
     }
-    Ok(())
 }
 
 #[allow(clippy::float_cmp)]
@@ -455,7 +455,8 @@ pub fn multipleOf(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let (Number(instance), Number(schema)) = (instance, schema) {
         let failed = if schema.is_f64() {
             let quotient = instance.as_f64().unwrap() / schema.as_f64().unwrap();
@@ -466,10 +467,9 @@ pub fn multipleOf(
             (instance.as_i64().unwrap() % schema.as_i64().unwrap()) != 0
         };
         if failed {
-            return Err(ValidationError::new("not multipleOf"));
+            errors.push(ValidationError::new("not multipleOf"));
         }
     }
-    Ok(())
 }
 
 pub fn minItems(
@@ -478,13 +478,13 @@ pub fn minItems(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let (Array(instance), Number(schema)) = (instance, schema) {
         if instance.len() < schema.as_u64().unwrap() as usize {
-            return Err(ValidationError::new("minItems"));
+            errors.push(ValidationError::new("minItems"));
         }
     }
-    Ok(())
 }
 
 pub fn maxItems(
@@ -493,13 +493,13 @@ pub fn maxItems(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let (Array(instance), Number(schema)) = (instance, schema) {
         if instance.len() > schema.as_u64().unwrap() as usize {
-            return Err(ValidationError::new("minItems"));
+            errors.push(ValidationError::new("minItems"));
         }
     }
-    Ok(())
 }
 
 pub fn uniqueItems(
@@ -508,13 +508,13 @@ pub fn uniqueItems(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let (Array(instance), Bool(schema)) = (instance, schema) {
         if *schema && !unique::has_unique_elements(&mut instance.iter()) {
-            return Err(ValidationError::new("uniqueItems"));
+            errors.push(ValidationError::new("uniqueItems"));
         }
     }
-    Ok(())
 }
 
 pub fn pattern(
@@ -523,13 +523,15 @@ pub fn pattern(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let (Value::String(instance), Value::String(schema)) = (instance, schema) {
-        if !regex::Regex::new(schema)?.is_match(instance) {
-            return Err(ValidationError::new("pattern"));
+        if let Ok(re) = regex::Regex::new(schema) {
+            if !re.is_match(instance) {
+                errors.push(ValidationError::new("pattern"));
+            }
         }
     }
-    Ok(())
 }
 
 pub fn format(
@@ -538,15 +540,15 @@ pub fn format(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let (Value::String(instance), Value::String(schema)) = (instance, schema) {
         if let Some(checker) = ctx.get_format_checker(schema) {
             if !checker(ctx, instance) {
-                return Err(ValidationError::new("format"));
+                errors.push(ValidationError::new("format"));
             }
         }
     }
-    Ok(())
 }
 
 pub fn minLength(
@@ -555,13 +557,13 @@ pub fn minLength(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let (Value::String(instance), Number(schema)) = (instance, schema) {
         if instance.chars().count() < schema.as_u64().unwrap() as usize {
-            return Err(ValidationError::new("minLength"));
+            errors.push(ValidationError::new("minLength"));
         }
     }
-    Ok(())
 }
 
 pub fn maxLength(
@@ -570,13 +572,13 @@ pub fn maxLength(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let (Value::String(instance), Number(schema)) = (instance, schema) {
         if instance.chars().count() > schema.as_u64().unwrap() as usize {
-            return Err(ValidationError::new("maxLength"));
+            errors.push(ValidationError::new("maxLength"));
         }
     }
-    Ok(())
 }
 
 pub fn dependencies(
@@ -585,7 +587,8 @@ pub fn dependencies(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let (Object(object), Object(schema)) = (instance, schema) {
         for (property, dependency) in schema.iter() {
             if !object.contains_key(property) {
@@ -594,12 +597,12 @@ pub fn dependencies(
 
             let dep = util::bool_to_object_schema(dependency);
             match dep {
-                Object(_) => descend(ctx, instance, dep, None, Some(property), stack)?,
+                Object(_) => descend(ctx, instance, dep, None, Some(property), stack, errors),
                 _ => {
                     for dep0 in util::iter_or_once(dep) {
                         if let Value::String(key) = dep0 {
                             if !object.contains_key(key) {
-                                return Err(ValidationError::new("dependency"));
+                                errors.push(ValidationError::new("dependency"));
                             }
                         }
                     }
@@ -607,7 +610,6 @@ pub fn dependencies(
             }
         }
     }
-    Ok(())
 }
 
 pub fn enum_(
@@ -616,17 +618,18 @@ pub fn enum_(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let Array(enums) = schema {
         if !enums.iter().any(|val| val == instance) {
-            return Err(ValidationError::new("enum"));
+            errors.push(ValidationError::new("enum"));
         }
     }
-    Ok(())
 }
 
 #[allow(clippy::float_cmp)]
 fn single_type(instance: &Value, schema: &Value) -> ValidatorResult {
+    // TODO: Probably don't need a Result return here -- a Bool would do
     if let Value::String(typename) = schema {
         match typename.as_ref() {
             "array" => {
@@ -694,11 +697,11 @@ pub fn type_(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if !util::iter_or_once(schema).any(|x| single_type(instance, x).is_ok()) {
-        return Err(ValidationError::new("type"));
+        errors.push(ValidationError::new("type"));
     }
-    Ok(())
 }
 
 pub fn properties(
@@ -707,7 +710,8 @@ pub fn properties(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let (Object(instance), Object(schema)) = (instance, schema) {
         for (property, subschema) in schema.iter() {
             if instance.contains_key(property) {
@@ -718,11 +722,11 @@ pub fn properties(
                     Some(property),
                     Some(property),
                     stack,
-                )?;
+                    errors
+                );
             }
         }
     }
-    Ok(())
 }
 
 pub fn required(
@@ -731,12 +735,13 @@ pub fn required(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let (Object(instance), Array(schema)) = (instance, schema) {
         for property in schema.iter() {
             if let Value::String(key) = property {
                 if !instance.contains_key(key) {
-                    return Err(ValidationError::new(&format!(
+                    errors.push(ValidationError::new(&format!(
                         "required property '{}' missing",
                         key
                     )));
@@ -744,7 +749,6 @@ pub fn required(
             }
         }
     }
-    Ok(())
 }
 
 pub fn minProperties(
@@ -753,13 +757,13 @@ pub fn minProperties(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let (Object(instance), Number(schema)) = (instance, schema) {
         if instance.len() < schema.as_u64().unwrap() as usize {
-            return Err(ValidationError::new("minProperties"));
+            errors.push(ValidationError::new("minProperties"));
         }
     }
-    Ok(())
 }
 
 pub fn maxProperties(
@@ -768,13 +772,13 @@ pub fn maxProperties(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     _stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let (Object(instance), Number(schema)) = (instance, schema) {
         if instance.len() > schema.as_u64().unwrap() as usize {
-            return Err(ValidationError::new("maxProperties"));
+            errors.push(ValidationError::new("maxProperties"));
         }
     }
-    Ok(())
 }
 
 pub fn allOf(
@@ -783,7 +787,8 @@ pub fn allOf(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let Array(schema) = schema {
         for (index, subschema) in schema.iter().enumerate() {
             let subschema0 = if ctx.get_draft_number() >= 6 {
@@ -798,10 +803,10 @@ pub fn allOf(
                 None,
                 Some(&index.to_string()),
                 stack,
-            )?;
+                errors
+            );
         }
     }
-    Ok(())
 }
 
 pub fn anyOf(
@@ -810,32 +815,35 @@ pub fn anyOf(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let Array(schema) = schema {
-        let mut errors: Vec<ValidationError> = Vec::new();
-        errors.reserve(schema.len());
         for (index, subschema) in schema.iter().enumerate() {
+            let mut local_errors: Vec<ValidationError> = Vec::new();
+            local_errors.reserve(schema.len());
+
             let subschema0 = if ctx.get_draft_number() >= 6 {
                 util::bool_to_object_schema(subschema)
             } else {
                 subschema
             };
 
-            match descend(
+            descend(
                 ctx,
                 instance,
                 subschema0,
                 None,
                 Some(&index.to_string()),
                 stack,
-            ) {
-                Ok(_) => return Ok(()),
-                Err(err) => errors.push(err)
+                &mut local_errors
+            );
+            if local_errors.len() == 0 {
+                return
             }
         }
-        return Err(ValidationError::from_errors("anyOf", &errors));
+        // TODO: Wrap local_errors into a single error
+        errors.push(ValidationError::new("anyOf"));
     }
-    Ok(())
 }
 
 pub fn oneOf(
@@ -844,55 +852,62 @@ pub fn oneOf(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let Array(schema) = schema {
         let mut oneOf = schema.iter();
         let mut found_one = false;
-        let mut errors: Vec<ValidationError> = Vec::new();
+        // TODO: Gather errors
         for (index, subschema) in oneOf.by_ref().enumerate() {
             let subschema0 = if ctx.get_draft_number() >= 6 {
                 util::bool_to_object_schema(subschema)
             } else {
                 subschema
             };
-            match descend(
+            let mut local_errors: Vec<ValidationError> = Vec::new();
+            descend(
                 ctx,
                 instance,
                 subschema0,
                 None,
                 Some(&index.to_string()),
                 stack,
-            ) {
-                Ok(_) => { found_one = true; break },
-                Err(err) => errors.push(err)
+                &mut local_errors
+            );
+            if local_errors.len() == 0 {
+                found_one = true;
+                break;
             }
         }
 
         if !found_one {
-            return Err(ValidationError::from_errors("Nothing matched in oneOf", &errors));
+            errors.push(ValidationError::new("Nothing matched in oneOf"));
+            return;
         }
 
         let mut found_more = false;
         for (index, subschema) in oneOf.by_ref().enumerate() {
             let subschema0 = util::bool_to_object_schema(subschema);
-            if descend(
+            let mut local_errors: Vec<ValidationError> = Vec::new();
+            descend(
                 ctx,
                 instance,
                 subschema0,
                 None,
                 Some(&index.to_string()),
                 stack,
-            ).is_ok()
-            {
+                &mut local_errors
+            );
+            if local_errors.len() == 0 {
                 found_more = true;
+                break;
             }
         }
 
         if found_more {
-            return Err(ValidationError::from_errors("More than one matched in oneOf", &errors));
+            errors.push(ValidationError::new("More than one matched in oneOf"));
         }
     }
-    Ok(())
 }
 
 pub fn not(
@@ -901,11 +916,13 @@ pub fn not(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
-) -> ValidatorResult {
-    if run_validators(ctx, instance, schema, stack).is_ok() {
-        return Err(ValidationError::new("not"));
+    errors: &mut Vec<ValidationError>
+) {
+    let mut local_errors: Vec<ValidationError> = Vec::new();
+    run_validators(ctx, instance, schema, stack, &mut local_errors);
+    if local_errors.len() == 0 {
+        errors.push(ValidationError::new("not"));
     }
-    Ok(())
 }
 
 pub fn ref_(
@@ -914,17 +931,21 @@ pub fn ref_(
     schema: &Value,
     _parent_schema: &Map<String, Value>,
     stack: &ScopeStack,
-) -> ValidatorResult {
+    errors: &mut Vec<ValidationError>
+) {
     if let Value::String(sref) = schema {
-        let (scope, resolved) = ctx
+        match ctx
             .get_resolver()
-            .resolve_fragment(sref, stack, ctx.get_schema())?;
-        let scope_schema = json!({"$id": scope.to_string()});
-        let new_stack = ScopeStack {
-            x: &scope_schema,
-            parent: Some(stack),
-        };
-        descend(ctx, instance, resolved, None, None, &new_stack)?
+            .resolve_fragment(sref, stack, ctx.get_schema()) {
+                Ok((scope, resolved)) => {
+                    let scope_schema = json!({"$id": scope.to_string()});
+                    let new_stack = ScopeStack {
+                        x: &scope_schema,
+                        parent: Some(stack),
+                    };
+                    descend(ctx, instance, resolved, None, None, &new_stack, errors);
+                }
+                Err(err) => errors.push(err)
+            }
     }
-    Ok(())
 }

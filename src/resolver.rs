@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde_json::Value;
 use url;
 
-use error::ValidationError;
+use error::{ScopeStack, ValidationError};
 use schemas;
 use validators;
 
@@ -71,7 +71,7 @@ impl<'a> Resolver<'a> {
     pub fn join_url(
         &self,
         url_ref: &str,
-        stack: &validators::ScopeStack,
+        stack: &ScopeStack,
     ) -> Result<url::Url, ValidationError> {
         let mut urls: Vec<&str> = Vec::new();
         urls.push(url_ref);
@@ -111,7 +111,7 @@ impl<'a> Resolver<'a> {
     pub fn resolve_fragment(
         &self,
         url: &str,
-        stack: &validators::ScopeStack,
+        stack: &ScopeStack,
         instance: &'a Value,
     ) -> Result<(url::Url, &'a Value), ValidationError> {
         let url = self.join_url(url, stack)?;

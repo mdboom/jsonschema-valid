@@ -18,8 +18,8 @@ mod unique;
 mod util;
 mod validators;
 
-pub fn validate(instance: &Value, schema: &Value, draft: Option<&schemas::Draft>) -> validators::ValidatorResult {
-    context::Context::from_schema(schema, draft)?.validate(instance, schema)
+pub fn validate(instance: &Value, schema: &Value, draft: Option<&schemas::Draft>) -> Vec<error::ValidationError> {
+    context::Context::from_schema(schema, draft).unwrap().validate(instance, schema)
 }
 
 #[cfg(test)]
@@ -61,10 +61,10 @@ mod tests {
                         let valid = test.get("valid").unwrap();
                         if let Value::Bool(is_valid) = valid {
                             let result = validate(&data, &schema, Some(draft));
-                            if !result.is_ok() {
+                            if result.len() != 0 {
                                 println!("{:?}", result);
                             }
-                            assert_eq!(result.is_ok(), *is_valid);
+                            assert_eq!(result.len() == 0, *is_valid);
                         }
                     }
                 }

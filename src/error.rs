@@ -4,7 +4,13 @@ use std::fmt;
 
 use itertools::{ Itertools, join };
 use regex;
+use serde_json::Value;
 use url;
+
+pub struct ScopeStack<'a> {
+    pub x: &'a Value,
+    pub parent: Option<&'a ScopeStack<'a>>,
+}
 
 #[derive(Default, Debug)]
 pub struct ValidationError {
@@ -67,20 +73,12 @@ impl ValidationError {
         }
     }
 
-    pub fn from_errors(msg: &str, errors: &[ValidationError]) -> ValidationError {
+    pub fn from_errors(msg: &str, errors: &[ValidationError], stack: &ScopeStack) -> ValidationError {
         ValidationError {
             msg: format!(
                 "{}: [{}\n]", msg,
                 join(errors.iter().map(|x| x.msg.as_str()), "\n    ")),
             ..Default::default()
         }
-    }
-
-    pub fn add_instance_path(&mut self, path: &str) {
-        self.instance_path.push(String::from(path));
-    }
-
-    pub fn add_schema_path(&mut self, path: &str) {
-        self.schema_path.push(String::from(path));
     }
 }
