@@ -49,7 +49,7 @@ impl<'a> Context<'a> {
 
     pub fn from_schema(
         schema: &'a Value,
-        draft: Option<&'a schemas::Draft>
+        draft: Option<&'a schemas::Draft>,
     ) -> Result<Context<'a>, ValidationError> {
         Ok(Context {
             schema,

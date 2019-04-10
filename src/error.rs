@@ -1,8 +1,8 @@
 use std::error;
-use std::io;
 use std::fmt;
+use std::io;
 
-use itertools::{ Itertools, join };
+use itertools::{join, Itertools};
 use regex;
 use serde_json::Value;
 use url;
@@ -73,11 +73,17 @@ impl ValidationError {
         }
     }
 
-    pub fn from_errors(msg: &str, errors: &[ValidationError], stack: &ScopeStack) -> ValidationError {
+    pub fn from_errors(
+        msg: &str,
+        errors: &[ValidationError],
+        stack: &ScopeStack,
+    ) -> ValidationError {
         ValidationError {
             msg: format!(
-                "{}: [{}\n]", msg,
-                join(errors.iter().map(|x| x.msg.as_str()), "\n    ")),
+                "{}: [{}\n]",
+                msg,
+                join(errors.iter().map(|x| x.msg.as_str()), "\n    ")
+            ),
             ..Default::default()
         }
     }
@@ -90,7 +96,7 @@ pub trait ErrorRecorder {
 
 #[derive(Default)]
 pub struct VecErrorRecorder {
-    errors: Vec<ValidationError>
+    errors: Vec<ValidationError>,
 }
 
 impl ErrorRecorder for VecErrorRecorder {
@@ -107,6 +113,6 @@ impl VecErrorRecorder {
     pub fn new() -> VecErrorRecorder {
         return VecErrorRecorder {
             ..Default::default()
-        }
+        };
     }
 }

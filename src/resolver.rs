@@ -11,7 +11,10 @@ use validators;
 
 fn id_of(schema: &Value) -> Option<&str> {
     if let Value::Object(object) = schema {
-        object.get("$id").or_else(|| object.get("id")).and_then(|x| x.as_str())
+        object
+            .get("$id")
+            .or_else(|| object.get("id"))
+            .and_then(|x| x.as_str())
     } else {
         None
     }
@@ -68,11 +71,7 @@ impl<'a> Resolver<'a> {
         })
     }
 
-    pub fn join_url(
-        &self,
-        url_ref: &str,
-        stack: &ScopeStack,
-    ) -> Result<url::Url, ValidationError> {
+    pub fn join_url(&self, url_ref: &str, stack: &ScopeStack) -> Result<url::Url, ValidationError> {
         let mut urls: Vec<&str> = Vec::new();
         urls.push(url_ref);
         let mut frame = stack;
@@ -103,8 +102,8 @@ impl<'a> Resolver<'a> {
                 _ => match self.id_mapping.get(url_str) {
                     Some(value) => Ok(value),
                     None => Err(ValidationError::new("Can't fetch document")),
-                }
-            }
+                },
+            },
         }
     }
 
@@ -118,10 +117,10 @@ impl<'a> Resolver<'a> {
         let mut resource = url.clone();
         resource.set_fragment(None);
         let document = self.resolve_url(&resource, instance)?;
-        let fragment = url::percent_encoding::percent_decode(
-            url.fragment().unwrap_or_else(|| "").as_bytes(),
-        ).decode_utf8()
-            .unwrap();
+        let fragment =
+            url::percent_encoding::percent_decode(url.fragment().unwrap_or_else(|| "").as_bytes())
+                .decode_utf8()
+                .unwrap();
         // TODO Prevent infinite reference recursion
         match document.pointer(&fragment) {
             Some(x) => Ok((resource, x)),

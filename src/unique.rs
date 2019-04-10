@@ -11,13 +11,17 @@ struct ValueWrapper<'a> {
 impl<'a> Hash for ValueWrapper<'a> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self.x {
-            Value::Array(array) => for element in array {
-                ValueWrapper { x: element }.hash(state);
-            },
-            Value::Object(object) => for (key, val) in object {
-                key.hash(state);
-                ValueWrapper { x: val }.hash(state);
-            },
+            Value::Array(array) => {
+                for element in array {
+                    ValueWrapper { x: element }.hash(state);
+                }
+            }
+            Value::Object(object) => {
+                for (key, val) in object {
+                    key.hash(state);
+                    ValueWrapper { x: val }.hash(state);
+                }
+            }
             Value::String(string) => string.hash(state),
             Value::Number(number) => {
                 if number.is_f64() {

@@ -4,14 +4,11 @@ use std::str::FromStr;
 
 use chrono::datetime::DateTime;
 use regex::Regex;
-use url::{ Host, Url };
+use url::{Host, Url};
 
 use context::Context;
 
-pub type FormatChecker = fn(
-    ctx: &Context,
-    value: &str,
-) -> bool;
+pub type FormatChecker = fn(ctx: &Context, value: &str) -> bool;
 
 pub fn email(_ctx: &Context, value: &str) -> bool {
     value.contains('@')

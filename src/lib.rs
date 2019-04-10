@@ -3,9 +3,9 @@ extern crate regex;
 extern crate serde_json;
 #[macro_use]
 extern crate lazy_static;
+extern crate chrono;
 extern crate itertools;
 extern crate url;
-extern crate chrono;
 
 use serde_json::Value;
 
@@ -18,9 +18,15 @@ mod unique;
 mod util;
 mod validators;
 
-pub fn validate(instance: &Value, schema: &Value, draft: Option<&schemas::Draft>) -> error::VecErrorRecorder {
+pub fn validate(
+    instance: &Value,
+    schema: &Value,
+    draft: Option<&schemas::Draft>,
+) -> error::VecErrorRecorder {
     let mut errors = error::VecErrorRecorder::new();
-    context::Context::from_schema(schema, draft).unwrap().validate(instance, schema, &mut errors);
+    context::Context::from_schema(schema, draft)
+        .unwrap()
+        .validate(instance, schema, &mut errors);
     errors
 }
 
@@ -28,9 +34,9 @@ pub fn validate(instance: &Value, schema: &Value, draft: Option<&schemas::Draft>
 mod tests {
     use super::*;
 
+    use error::ErrorRecorder;
     use std::fs;
     use std::path::PathBuf;
-    use error::ErrorRecorder;
 
     // Test files we know will fail.
     const KNOWN_FAILURES: &'static [&'static str] = &["refRemote.json"];
