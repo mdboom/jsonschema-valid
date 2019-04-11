@@ -41,7 +41,11 @@ mod tests {
     // Test files we know will fail.
     const KNOWN_FAILURES: &'static [&'static str] = &["refRemote.json"];
 
-    fn test_draft(path: &PathBuf, draft: &schemas::Draft) {
+    fn test_draft(dirname: &str, draft: &schemas::Draft) {
+        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push("JSON-Schema-Test-Suite/tests");
+        path.push(dirname);
+
         let paths = fs::read_dir(path).unwrap();
 
         for entry in paths {
@@ -49,6 +53,7 @@ mod tests {
             if KNOWN_FAILURES.contains(&dir_entry.file_name().to_str().unwrap()) {
                 continue;
             }
+
             let path = dir_entry.path();
             if path.extension().map_or_else(|| "", |x| x.to_str().unwrap()) == "json" {
                 println!("Testing {:?}", path.display());
@@ -80,15 +85,11 @@ mod tests {
 
     #[test]
     fn test_draft6() {
-        let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        d.push("JSON-Schema-Test-Suite/tests/draft6");
-        test_draft(&d, &schemas::Draft6);
+        test_draft("draft6", &schemas::Draft6);
     }
 
     #[test]
     fn test_draft4() {
-        let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        d.push("JSON-Schema-Test-Suite/tests/draft4");
-        test_draft(&d, &schemas::Draft4);
+        test_draft("draft4", &schemas::Draft4);
     }
 }
