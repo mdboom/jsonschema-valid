@@ -1,9 +1,6 @@
 use std::error;
 use std::fmt;
-use std::io;
-
 use itertools::{join, Itertools};
-use regex;
 use serde_json::Value;
 use url;
 
@@ -37,31 +34,9 @@ impl error::Error for ValidationError {
     }
 }
 
-impl From<regex::Error> for ValidationError {
-    fn from(err: regex::Error) -> ValidationError {
-        match err {
-            regex::Error::Syntax(msg) => ValidationError::new(&msg),
-            regex::Error::CompiledTooBig(_) => ValidationError::new("regex too big"),
-            _ => ValidationError::new("Unknown regular expression error"),
-        }
-    }
-}
-
 impl From<url::ParseError> for ValidationError {
     fn from(err: url::ParseError) -> ValidationError {
         ValidationError::new(&format!("Invalid URL: {:?}", err))
-    }
-}
-
-impl From<io::Error> for ValidationError {
-    fn from(err: io::Error) -> ValidationError {
-        ValidationError::new(&format!("IO error: {:?}", err))
-    }
-}
-
-impl From<()> for ValidationError {
-    fn from(_err: ()) -> ValidationError {
-        ValidationError::new("Unknown error")
     }
 }
 
