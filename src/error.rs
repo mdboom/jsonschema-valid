@@ -1,7 +1,7 @@
-use std::error;
-use std::fmt;
 use itertools::{join, Itertools};
 use serde_json::Value;
+use std::error;
+use std::fmt;
 use url;
 
 pub struct ScopeStack<'a> {

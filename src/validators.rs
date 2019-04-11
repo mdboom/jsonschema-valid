@@ -661,19 +661,39 @@ fn single_type(instance: &Value, schema: &Value) -> bool {
     if let Value::String(typename) = schema {
         return match typename.as_ref() {
             "array" => {
-                if let Array(_) = instance { true } else { false }
+                if let Array(_) = instance {
+                    true
+                } else {
+                    false
+                }
             }
             "object" => {
-                if let Object(_) = instance { true } else { false }
+                if let Object(_) = instance {
+                    true
+                } else {
+                    false
+                }
             }
             "null" => {
-                if let Value::Null = instance { true } else { false }
+                if let Value::Null = instance {
+                    true
+                } else {
+                    false
+                }
             }
             "number" => {
-                if let Number(_) = instance { true } else { false }
+                if let Number(_) = instance {
+                    true
+                } else {
+                    false
+                }
             }
             "string" => {
-                if let Value::String(_) = instance { true } else { false }
+                if let Value::String(_) = instance {
+                    true
+                } else {
+                    false
+                }
             }
             "integer" => {
                 if let Number(number) = instance {
@@ -686,10 +706,14 @@ fn single_type(instance: &Value, schema: &Value) -> bool {
                 }
             }
             "boolean" => {
-                if let Bool(_) = instance { true } else { false }
+                if let Bool(_) = instance {
+                    true
+                } else {
+                    false
+                }
             }
             _ => true,
-        }
+        };
     }
     true
 }

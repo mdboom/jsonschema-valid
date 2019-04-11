@@ -13,7 +13,7 @@ mod context;
 mod error;
 mod format;
 mod resolver;
-mod schemas;
+pub mod schemas;
 mod unique;
 mod util;
 mod validators;

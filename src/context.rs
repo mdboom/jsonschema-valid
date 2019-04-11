@@ -54,8 +54,9 @@ impl<'a> Context<'a> {
         Ok(Context {
             schema,
             resolver: Resolver::from_schema(schema)?,
-            draft: schemas::draft_from_schema(schema)
-                .unwrap_or_else(|| draft.unwrap_or_else(|| &schemas::Draft6)),
+            draft: draft.unwrap_or_else(|| {
+                schemas::draft_from_schema(schema).unwrap_or_else(|| &schemas::Draft6)
+            }),
         })
     }
 }
