@@ -46,6 +46,14 @@ impl ValidationError {
         }
     }
 
+    pub fn new_with_schema_context(msg: &str, schema_ctx: &Context) -> ValidationError {
+        ValidationError {
+            msg: String::from(msg),
+            instance_path: None,
+            schema_path: Some(schema_ctx.flatten()),
+        }
+    }
+
     pub fn new_with_context(
         msg: &str,
         instance_ctx: &Context,
