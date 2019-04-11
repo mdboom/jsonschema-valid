@@ -2,7 +2,7 @@
 
 use regex;
 
-use serde_json::{Map, Value, Number, Value::Array, Value::Bool, Value::Object};
+use serde_json::{Map, Number, Value, Value::Array, Value::Bool, Value::Object};
 
 use config::Config;
 use context::Context;
@@ -35,7 +35,11 @@ pub fn descend<'a>(
     match schema {
         Bool(b) => {
             if !*b {
-                errors.record_error(ValidationError::new("false schema always fails"))
+                errors.record_error(ValidationError::new_with_context(
+                    "false schema always fails",
+                    instance_ctx,
+                    schema_ctx,
+                ))
             }
         }
         Object(schema_object) => {
@@ -69,7 +73,11 @@ pub fn descend<'a>(
                 }
             }
         }
-        _ => errors.record_error(ValidationError::new("Invalid schema")),
+        _ => errors.record_error(ValidationError::new_with_context(
+            "Invalid schema",
+            instance_ctx,
+            schema_ctx,
+        )),
     }
 }
 
@@ -115,9 +123,11 @@ pub fn patternProperties(
                         }
                     }
                 }
-                Err(err) => {
-                    errors.record_error(ValidationError::new(format!("{:?}", err).as_str()))
-                }
+                Err(err) => errors.record_error(ValidationError::new_with_context(
+                    format!("{:?}", err).as_str(),
+                    instance_ctx,
+                    schema_ctx,
+                )),
             }
         }
     }
@@ -206,8 +216,10 @@ pub fn additionalProperties(
                 }
                 Bool(bool) => {
                     if !bool && extras.peekable().peek().is_some() {
-                        errors.record_error(ValidationError::new(
+                        errors.record_error(ValidationError::new_with_context(
                             "Additional properties are not allowed",
+                            instance_ctx,
+                            schema_ctx,
                         ));
                     }
                 }
@@ -342,7 +354,11 @@ pub fn additionalItems(
             }
             Bool(b) => {
                 if !b && instance.len() > len_items {
-                    errors.record_error(ValidationError::new("Additional items are not allowed"));
+                    errors.record_error(ValidationError::new_with_context(
+                        "Additional items are not allowed",
+                        instance_ctx,
+                        schema_ctx,
+                    ));
                 }
             }
             _ => {}
@@ -355,13 +371,17 @@ pub fn const_(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    _instance_ctx: &Context,
-    _schema_ctx: &Context,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) {
     if instance != schema {
-        errors.record_error(ValidationError::new("Invalid const"));
+        errors.record_error(ValidationError::new_with_context(
+            "Invalid const",
+            instance_ctx,
+            schema_ctx,
+        ));
     }
 }
 
@@ -370,8 +390,8 @@ pub fn contains(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    _instance_ctx: &Context,
-    _schema_ctx: &Context,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) {
@@ -380,8 +400,10 @@ pub fn contains(
             .iter()
             .any(|element| is_valid(cfg, element, schema))
         {
-            errors.record_error(ValidationError::new(
+            errors.record_error(ValidationError::new_with_context(
                 "Nothing is valid under the given schema",
+                instance_ctx,
+                schema_ctx,
             ));
         }
     }
@@ -392,14 +414,18 @@ pub fn exclusiveMinimum(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    _instance_ctx: &Context,
-    _schema_ctx: &Context,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) {
     if let (Value::Number(instance), Value::Number(schema)) = (instance, schema) {
         if instance.as_f64() <= schema.as_f64() {
-            errors.record_error(ValidationError::new("exclusiveMinimum"));
+            errors.record_error(ValidationError::new_with_context(
+                "exclusiveMinimum",
+                instance_ctx,
+                schema_ctx,
+            ));
         }
     }
 }
@@ -409,14 +435,18 @@ pub fn exclusiveMaximum(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    _instance_ctx: &Context,
-    _schema_ctx: &Context,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) {
     if let (Value::Number(instance), Value::Number(schema)) = (instance, schema) {
         if instance.as_f64() >= schema.as_f64() {
-            errors.record_error(ValidationError::new("exclusiveMaximum"));
+            errors.record_error(ValidationError::new_with_context(
+                "exclusiveMaximum",
+                instance_ctx,
+                schema_ctx,
+            ));
         }
     }
 }
@@ -426,8 +456,8 @@ pub fn minimum_draft4(
     instance: &Value,
     schema: &Value,
     parent_schema: &Map<String, Value>,
-    _instance_ctx: &Context,
-    _schema_ctx: &Context,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) {
@@ -442,7 +472,11 @@ pub fn minimum_draft4(
             instance.as_f64() < minimum.as_f64()
         };
         if failed {
-            errors.record_error(ValidationError::new("minimum"));
+            errors.record_error(ValidationError::new_with_context(
+                "minimum",
+                instance_ctx,
+                schema_ctx,
+            ));
         }
     }
 }
@@ -452,14 +486,18 @@ pub fn minimum(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    _instance_ctx: &Context,
-    _schema_ctx: &Context,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) {
     if let (Value::Number(instance), Value::Number(schema)) = (instance, schema) {
         if instance.as_f64() < schema.as_f64() {
-            errors.record_error(ValidationError::new("minimum"));
+            errors.record_error(ValidationError::new_with_context(
+                "minimum",
+                instance_ctx,
+                schema_ctx,
+            ));
         }
     }
 }
@@ -469,8 +507,8 @@ pub fn maximum_draft4(
     instance: &Value,
     schema: &Value,
     parent_schema: &Map<String, Value>,
-    _instance_ctx: &Context,
-    _schema_ctx: &Context,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) {
@@ -485,7 +523,11 @@ pub fn maximum_draft4(
             instance.as_f64() > maximum.as_f64()
         };
         if failed {
-            errors.record_error(ValidationError::new("maximum"));
+            errors.record_error(ValidationError::new_with_context(
+                "maximum",
+                instance_ctx,
+                schema_ctx,
+            ));
         }
     }
 }
@@ -495,14 +537,18 @@ pub fn maximum(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    _instance_ctx: &Context,
-    _schema_ctx: &Context,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) {
     if let (Value::Number(instance), Value::Number(schema)) = (instance, schema) {
         if instance.as_f64() > schema.as_f64() {
-            errors.record_error(ValidationError::new("maximum"));
+            errors.record_error(ValidationError::new_with_context(
+                "maximum",
+                instance_ctx,
+                schema_ctx,
+            ));
         }
     }
 }
@@ -513,8 +559,8 @@ pub fn multipleOf(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    _instance_ctx: &Context,
-    _schema_ctx: &Context,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) {
@@ -528,7 +574,11 @@ pub fn multipleOf(
             (instance.as_i64().unwrap() % schema.as_i64().unwrap()) != 0
         };
         if failed {
-            errors.record_error(ValidationError::new("not multipleOf"));
+            errors.record_error(ValidationError::new_with_context(
+                "not multipleOf",
+                instance_ctx,
+                schema_ctx,
+            ));
         }
     }
 }
@@ -538,14 +588,18 @@ pub fn minItems(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    _instance_ctx: &Context,
-    _schema_ctx: &Context,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) {
     if let (Array(instance), Value::Number(schema)) = (instance, schema) {
         if instance.len() < schema.as_u64().unwrap() as usize {
-            errors.record_error(ValidationError::new("minItems"));
+            errors.record_error(ValidationError::new_with_context(
+                "minItems",
+                instance_ctx,
+                schema_ctx,
+            ));
         }
     }
 }
@@ -555,14 +609,18 @@ pub fn maxItems(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    _instance_ctx: &Context,
-    _schema_ctx: &Context,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) {
     if let (Array(instance), Value::Number(schema)) = (instance, schema) {
         if instance.len() > schema.as_u64().unwrap() as usize {
-            errors.record_error(ValidationError::new("minItems"));
+            errors.record_error(ValidationError::new_with_context(
+                "minItems",
+                instance_ctx,
+                schema_ctx,
+            ));
         }
     }
 }
@@ -572,14 +630,18 @@ pub fn uniqueItems(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    _instance_ctx: &Context,
-    _schema_ctx: &Context,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) {
     if let (Array(instance), Bool(schema)) = (instance, schema) {
         if *schema && !unique::has_unique_elements(&mut instance.iter()) {
-            errors.record_error(ValidationError::new("uniqueItems"));
+            errors.record_error(ValidationError::new_with_context(
+                "uniqueItems",
+                instance_ctx,
+                schema_ctx,
+            ));
         }
     }
 }
@@ -589,15 +651,19 @@ pub fn pattern(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    _instance_ctx: &Context,
-    _schema_ctx: &Context,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) {
     if let (Value::String(instance), Value::String(schema)) = (instance, schema) {
         if let Ok(re) = regex::Regex::new(schema) {
             if !re.is_match(instance) {
-                errors.record_error(ValidationError::new("pattern"));
+                errors.record_error(ValidationError::new_with_context(
+                    "pattern",
+                    instance_ctx,
+                    schema_ctx,
+                ));
             }
         }
     }
@@ -608,15 +674,19 @@ pub fn format(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    _instance_ctx: &Context,
-    _schema_ctx: &Context,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) {
     if let (Value::String(instance), Value::String(schema)) = (instance, schema) {
         if let Some(checker) = cfg.get_format_checker(schema) {
             if !checker(cfg, instance) {
-                errors.record_error(ValidationError::new("format"));
+                errors.record_error(ValidationError::new_with_context(
+                    "format",
+                    instance_ctx,
+                    schema_ctx,
+                ));
             }
         }
     }
@@ -627,14 +697,18 @@ pub fn minLength(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    _instance_ctx: &Context,
-    _schema_ctx: &Context,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) {
     if let (Value::String(instance), Value::Number(schema)) = (instance, schema) {
         if instance.chars().count() < schema.as_u64().unwrap() as usize {
-            errors.record_error(ValidationError::new("minLength"));
+            errors.record_error(ValidationError::new_with_context(
+                "minLength",
+                instance_ctx,
+                schema_ctx,
+            ));
         }
     }
 }
@@ -644,14 +718,18 @@ pub fn maxLength(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    _instance_ctx: &Context,
-    _schema_ctx: &Context,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) {
     if let (Value::String(instance), Value::Number(schema)) = (instance, schema) {
         if instance.chars().count() > schema.as_u64().unwrap() as usize {
-            errors.record_error(ValidationError::new("maxLength"));
+            errors.record_error(ValidationError::new_with_context(
+                "maxLength",
+                instance_ctx,
+                schema_ctx,
+            ));
         }
     }
 }
@@ -687,7 +765,11 @@ pub fn dependencies(
                     for dep0 in util::iter_or_once(dep) {
                         if let Value::String(key) = dep0 {
                             if !object.contains_key(key) {
-                                errors.record_error(ValidationError::new("dependency"));
+                                errors.record_error(ValidationError::new_with_context(
+                                    "dependency",
+                                    instance_ctx,
+                                    schema_ctx,
+                                ));
                             }
                         }
                     }
@@ -702,14 +784,18 @@ pub fn enum_(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    _instance_ctx: &Context,
-    _schema_ctx: &Context,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) {
     if let Array(enums) = schema {
         if !enums.iter().any(|val| val == instance) {
-            errors.record_error(ValidationError::new("enum"));
+            errors.record_error(ValidationError::new_with_context(
+                "enum",
+                instance_ctx,
+                schema_ctx,
+            ));
         }
     }
 }
@@ -781,13 +867,17 @@ pub fn type_(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    _instance_ctx: &Context,
-    _schema_ctx: &Context,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) {
     if !util::iter_or_once(schema).any(|x| single_type(instance, x)) {
-        errors.record_error(ValidationError::new("type"));
+        errors.record_error(ValidationError::new_with_context(
+            "type",
+            instance_ctx,
+            schema_ctx,
+        ));
     }
 }
 
@@ -823,8 +913,8 @@ pub fn required(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    _instance_ctx: &Context,
-    _schema_ctx: &Context,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) {
@@ -832,10 +922,11 @@ pub fn required(
         for property in schema.iter() {
             if let Value::String(key) = property {
                 if !instance.contains_key(key) {
-                    errors.record_error(ValidationError::new(&format!(
-                        "required property '{}' missing",
-                        key
-                    )));
+                    errors.record_error(ValidationError::new_with_context(
+                        &format!("required property '{}' missing", key),
+                        instance_ctx,
+                        schema_ctx,
+                    ));
                 }
             }
         }
@@ -847,14 +938,18 @@ pub fn minProperties(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    _instance_ctx: &Context,
-    _schema_ctx: &Context,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) {
     if let (Object(instance), Value::Number(schema)) = (instance, schema) {
         if instance.len() < schema.as_u64().unwrap() as usize {
-            errors.record_error(ValidationError::new("minProperties"));
+            errors.record_error(ValidationError::new_with_context(
+                "minProperties",
+                instance_ctx,
+                schema_ctx,
+            ));
         }
     }
 }
@@ -864,14 +959,18 @@ pub fn maxProperties(
     instance: &Value,
     schema: &Value,
     _parent_schema: &Map<String, Value>,
-    _instance_ctx: &Context,
-    _schema_ctx: &Context,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) {
     if let (Object(instance), Value::Number(schema)) = (instance, schema) {
         if instance.len() > schema.as_u64().unwrap() as usize {
-            errors.record_error(ValidationError::new("maxProperties"));
+            errors.record_error(ValidationError::new_with_context(
+                "maxProperties",
+                instance_ctx,
+                schema_ctx,
+            ));
         }
     }
 }
@@ -940,7 +1039,11 @@ pub fn anyOf(
             }
         }
         // TODO: Wrap local_errors into a single error
-        errors.record_error(ValidationError::new("anyOf"));
+        errors.record_error(ValidationError::new_with_context(
+            "anyOf",
+            instance_ctx,
+            schema_ctx,
+        ));
     }
 }
 
@@ -981,7 +1084,11 @@ pub fn oneOf(
         }
 
         if !found_one {
-            errors.record_error(ValidationError::new("Nothing matched in oneOf"));
+            errors.record_error(ValidationError::new_with_context(
+                "Nothing matched in oneOf",
+                instance_ctx,
+                schema_ctx,
+            ));
             return;
         }
 
@@ -1005,7 +1112,11 @@ pub fn oneOf(
         }
 
         if found_more {
-            errors.record_error(ValidationError::new("More than one matched in oneOf"));
+            errors.record_error(ValidationError::new_with_context(
+                "More than one matched in oneOf",
+                instance_ctx,
+                schema_ctx,
+            ));
         }
     }
 }
@@ -1031,7 +1142,11 @@ pub fn not(
         &mut local_errors,
     );
     if !local_errors.has_errors() {
-        errors.record_error(ValidationError::new("not"));
+        errors.record_error(ValidationError::new_with_context(
+            "not",
+            instance_ctx,
+            schema_ctx,
+        ));
     }
 }
 

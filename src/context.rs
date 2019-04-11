@@ -24,5 +24,19 @@ impl<'a> Context<'a> {
         }
     }
 
-    // TODO: Read out in reverse
+    pub fn flatten(&'a self) -> Vec<Value> {
+        let mut result = Vec::new();
+        let mut ptr = self;
+        if !ptr.x.is_null() {
+            result.push(ptr.x.clone())
+        }
+        while ptr.parent.is_some() {
+            ptr = ptr.parent.unwrap();
+            if !ptr.x.is_null() {
+                result.push(ptr.x.clone())
+            }
+        }
+        result.reverse();
+        result
+    }
 }

@@ -1,24 +1,28 @@
-use itertools::Itertools;
+use serde_json::Value;
+
 use std::error;
 use std::fmt;
 use url;
 
+use context::Context;
+
 #[derive(Default, Debug)]
 pub struct ValidationError {
     msg: String,
-    instance_path: Vec<String>,
-    schema_path: Vec<String>,
+    instance_path: Option<Vec<Value>>,
+    schema_path: Option<Vec<Value>>,
 }
 
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let instance_path = self.instance_path.iter().rev().join("/");
-        let schema_path = self.schema_path.iter().rev().join("/");
-        write!(
-            f,
-            "At {} in schema {}: {}",
-            instance_path, schema_path, self.msg
-        )
+        // let instance_path = self.instance_path.iter().rev().join("/");
+        // let schema_path = self.schema_path.iter().rev().join("/");
+        // write!(
+        //     f,
+        //     "At {} in schema {}: {}",
+        //     instance_path, schema_path, self.msg
+        // )
+        write!(f, "{}", self.msg)
     }
 }
 
@@ -39,6 +43,18 @@ impl ValidationError {
         ValidationError {
             msg: String::from(msg),
             ..Default::default()
+        }
+    }
+
+    pub fn new_with_context(
+        msg: &str,
+        instance_ctx: &Context,
+        schema_ctx: &Context,
+    ) -> ValidationError {
+        ValidationError {
+            msg: String::from(msg),
+            instance_path: Some(instance_ctx.flatten()),
+            schema_path: Some(schema_ctx.flatten()),
         }
     }
 
