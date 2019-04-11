@@ -1,13 +1,7 @@
-use itertools::{join, Itertools};
-use serde_json::Value;
+use itertools::Itertools;
 use std::error;
 use std::fmt;
 use url;
-
-pub struct ScopeStack<'a> {
-    pub x: &'a Value,
-    pub parent: Option<&'a ScopeStack<'a>>,
-}
 
 #[derive(Default, Debug)]
 pub struct ValidationError {
@@ -48,20 +42,20 @@ impl ValidationError {
         }
     }
 
-    pub fn from_errors(
-        msg: &str,
-        errors: &[ValidationError],
-        _stack: &ScopeStack,
-    ) -> ValidationError {
-        ValidationError {
-            msg: format!(
-                "{}: [{}\n]",
-                msg,
-                join(errors.iter().map(|x| x.msg.as_str()), "\n    ")
-            ),
-            ..Default::default()
-        }
-    }
+    // pub fn from_errors(
+    //     msg: &str,
+    //     errors: &[ValidationError],
+    //     _stack: &ScopeStack,
+    // ) -> ValidationError {
+    //     ValidationError {
+    //         msg: format!(
+    //             "{}: [{}\n]",
+    //             msg,
+    //             join(errors.iter().map(|x| x.msg.as_str()), "\n    ")
+    //         ),
+    //         ..Default::default()
+    //     }
+    // }
 }
 
 pub trait ErrorRecorder {

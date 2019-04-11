@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use serde_json::Value;
 use url;
 
-use error::{ScopeStack, ValidationError};
+use context::Context;
+use error::ValidationError;
 use schemas;
 // TODO: Make the choice of resolver dynamic
 
@@ -69,10 +70,10 @@ impl<'a> Resolver<'a> {
         })
     }
 
-    pub fn join_url(&self, url_ref: &str, stack: &ScopeStack) -> Result<url::Url, ValidationError> {
+    pub fn join_url(&self, url_ref: &str, ctx: &Context) -> Result<url::Url, ValidationError> {
         let mut urls: Vec<&str> = Vec::new();
         urls.push(url_ref);
-        let mut frame = stack;
+        let mut frame = ctx;
         loop {
             if let Some(id) = id_of(frame.x) {
                 urls.push(id);
@@ -108,10 +109,10 @@ impl<'a> Resolver<'a> {
     pub fn resolve_fragment(
         &self,
         url: &str,
-        stack: &ScopeStack,
+        ctx: &Context,
         instance: &'a Value,
     ) -> Result<(url::Url, &'a Value), ValidationError> {
-        let url = self.join_url(url, stack)?;
+        let url = self.join_url(url, ctx)?;
         let mut resource = url.clone();
         resource.set_fragment(None);
         let document = self.resolve_url(&resource, instance)?;

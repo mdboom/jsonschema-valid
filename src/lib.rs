@@ -9,6 +9,7 @@ extern crate url;
 
 use serde_json::Value;
 
+mod config;
 mod context;
 mod error;
 mod format;
@@ -24,7 +25,7 @@ pub fn validate(
     draft: Option<&schemas::Draft>,
 ) -> error::VecErrorRecorder {
     let mut errors = error::VecErrorRecorder::new();
-    context::Context::from_schema(schema, draft)
+    config::Config::from_schema(schema, draft)
         .unwrap()
         .validate(instance, schema, &mut errors);
     errors

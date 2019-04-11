@@ -1,62 +1,28 @@
 use serde_json::Value;
 
-use error::{ErrorRecorder, ScopeStack, ValidationError};
-use format::FormatChecker;
-use resolver::Resolver;
-use schemas;
-use validators;
-use validators::Validator;
-
 pub struct Context<'a> {
-    schema: &'a Value,
-    resolver: Resolver<'a>,
-    draft: &'a schemas::Draft,
+    pub x: &'a Value,
+    pub parent: Option<&'a Context<'a>>,
 }
 
 impl<'a> Context<'a> {
-    pub fn get_validator(&self, key: &str) -> Option<Validator> {
-        self.draft.get_validator(key)
+    pub fn new() -> Context<'static> {
+        Context {
+            x: &Value::Null,
+            parent: None,
+        }
     }
 
-    pub fn get_format_checker(&self, key: &str) -> Option<FormatChecker> {
-        self.draft.get_format_checker(key)
+    pub fn new_from(x: &'a Value) -> Context<'a> {
+        Context { x: x, parent: None }
     }
 
-    pub fn get_draft_number(&self) -> u8 {
-        self.draft.get_draft_number()
+    pub fn push(&'a self, x: &'a Value) -> Context<'a> {
+        Context {
+            x: x,
+            parent: Some(self),
+        }
     }
 
-    pub fn validate(&self, instance: &Value, schema: &Value, errors: &mut ErrorRecorder) {
-        validators::run_validators(
-            self,
-            instance,
-            schema,
-            &ScopeStack {
-                x: &schema,
-                parent: None,
-            },
-            errors,
-        );
-    }
-
-    pub fn get_resolver(&self) -> &Resolver<'a> {
-        &self.resolver
-    }
-
-    pub fn get_schema(&self) -> &Value {
-        &self.schema
-    }
-
-    pub fn from_schema(
-        schema: &'a Value,
-        draft: Option<&'a schemas::Draft>,
-    ) -> Result<Context<'a>, ValidationError> {
-        Ok(Context {
-            schema,
-            resolver: Resolver::from_schema(schema)?,
-            draft: draft.unwrap_or_else(|| {
-                schemas::draft_from_schema(schema).unwrap_or_else(|| &schemas::Draft6)
-            }),
-        })
-    }
+    // TODO: Read out in reverse
 }
