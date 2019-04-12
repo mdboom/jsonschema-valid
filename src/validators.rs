@@ -1,5 +1,7 @@
 #![allow(non_snake_case)]
+#![allow(clippy::too_many_arguments)]
 
+use itertools::Itertools;
 use regex;
 
 use serde_json::{Map, Number, Value, Value::Array, Value::Bool, Value::Object};
@@ -200,8 +202,9 @@ pub fn additionalProperties(
                 }
                 Bool(bool) => {
                     if !bool && extras.peekable().peek().is_some() {
+                        let mut extraProps = find_additional_properties(instance, parent_schema);
                         errors.record_error(ValidationError::new_with_context(
-                            format!("Additional properties are not allowed. Found {:?}", "TODO")
+                            format!("Additional properties are not allowed. Found {}", extraProps.join(", "))
                                 .as_str(),
                             instance_ctx,
                             schema_ctx,
@@ -367,7 +370,7 @@ pub fn const_(
 ) -> Option<()> {
     if instance != schema {
         errors.record_error(ValidationError::new_with_context(
-            "const doesn't match",
+            format!("const doesn't match. Got {}, expected {}", instance.to_string(), schema.to_string()).as_str(),
             instance_ctx,
             schema_ctx,
         ))?;
@@ -421,7 +424,7 @@ pub fn exclusiveMinimum(
     if let (Value::Number(instance), Value::Number(schema)) = (instance, schema) {
         if instance.as_f64() <= schema.as_f64() {
             errors.record_error(ValidationError::new_with_context(
-                format!("{:?} <= exclusiveMinimum {:?}", instance, schema).as_str(),
+                format!("{} <= exclusiveMinimum {}", instance, schema).as_str(),
                 instance_ctx,
                 schema_ctx,
             ))?;
@@ -443,7 +446,7 @@ pub fn exclusiveMaximum(
     if let (Value::Number(instance), Value::Number(schema)) = (instance, schema) {
         if instance.as_f64() >= schema.as_f64() {
             errors.record_error(ValidationError::new_with_context(
-                format!("{:?} >= exclusiveMaximum {:?}", instance, schema).as_str(),
+                format!("{} >= exclusiveMaximum {}", instance, schema).as_str(),
                 instance_ctx,
                 schema_ctx,
             ))?;
@@ -470,14 +473,14 @@ pub fn minimum_draft4(
         {
             if instance.as_f64() <= minimum.as_f64() {
                 errors.record_error(ValidationError::new_with_context(
-                    format!("{:?} <= exclusiveMinimum {:?}", instance, schema).as_str(),
+                    format!("{} <= exclusiveMinimum {}", instance, schema).as_str(),
                     instance_ctx,
                     schema_ctx,
                 ))?;
             }
         } else if instance.as_f64() < minimum.as_f64() {
             errors.record_error(ValidationError::new_with_context(
-                format!("{:?} <= minimum {:?}", instance, schema).as_str(),
+                format!("{} <= minimum {}", instance, schema).as_str(),
                 instance_ctx,
                 schema_ctx,
             ))?;
@@ -499,7 +502,7 @@ pub fn minimum(
     if let (Value::Number(instance), Value::Number(schema)) = (instance, schema) {
         if instance.as_f64() < schema.as_f64() {
             errors.record_error(ValidationError::new_with_context(
-                format!("{:?} < minimum {:?}", instance, schema).as_str(),
+                format!("{} < minimum {}", instance, schema).as_str(),
                 instance_ctx,
                 schema_ctx,
             ))?;
@@ -526,14 +529,14 @@ pub fn maximum_draft4(
         {
             if instance.as_f64() >= maximum.as_f64() {
                 errors.record_error(ValidationError::new_with_context(
-                    format!("{:?} >= exclusiveMaximum {:?}", instance, schema).as_str(),
+                    format!("{} >= exclusiveMaximum {}", instance, schema).as_str(),
                     instance_ctx,
                     schema_ctx,
                 ))?;
             }
         } else if instance.as_f64() > maximum.as_f64() {
             errors.record_error(ValidationError::new_with_context(
-                format!("{:?} > maximum {:?}", instance, schema).as_str(),
+                format!("{} > maximum {}", instance, schema).as_str(),
                 instance_ctx,
                 schema_ctx,
             ))?;
@@ -555,7 +558,7 @@ pub fn maximum(
     if let (Value::Number(instance), Value::Number(schema)) = (instance, schema) {
         if instance.as_f64() > schema.as_f64() {
             errors.record_error(ValidationError::new_with_context(
-                format!("{:?} > maximum {:?}", instance, schema).as_str(),
+                format!("{} > maximum {}", instance, schema).as_str(),
                 instance_ctx,
                 schema_ctx,
             ))?;
@@ -586,7 +589,7 @@ pub fn multipleOf(
         };
         if failed {
             errors.record_error(ValidationError::new_with_context(
-                format!("{:?} not multipleOf {:?}", instance, schema).as_str(),
+                format!("{} not multipleOf {}", instance, schema).as_str(),
                 instance_ctx,
                 schema_ctx,
             ))?;
@@ -608,7 +611,7 @@ pub fn minItems(
     if let (Array(instance), Value::Number(schema)) = (instance, schema) {
         if instance.len() < schema.as_u64().unwrap() as usize {
             errors.record_error(ValidationError::new_with_context(
-                format!("{:?} < minItems {:?}", instance.len(), schema).as_str(),
+                format!("{} < minItems {}", instance.len(), schema).as_str(),
                 instance_ctx,
                 schema_ctx,
             ))?;
@@ -630,7 +633,7 @@ pub fn maxItems(
     if let (Array(instance), Value::Number(schema)) = (instance, schema) {
         if instance.len() > schema.as_u64().unwrap() as usize {
             errors.record_error(ValidationError::new_with_context(
-                format!("{:?} > maxItems {:?}", instance.len(), schema).as_str(),
+                format!("{} > maxItems {}", instance.len(), schema).as_str(),
                 instance_ctx,
                 schema_ctx,
             ))?;
@@ -676,7 +679,7 @@ pub fn pattern(
             Ok(re) => {
                 if !re.is_match(instance) {
                     errors.record_error(ValidationError::new_with_context(
-                        format!("{:?} does not match pattern {:?}", instance, schema).as_str(),
+                        format!("{} does not match pattern {}", instance.to_string(), schema.to_string()).as_str(),
                         instance_ctx,
                         schema_ctx,
                     ))?;
@@ -705,7 +708,7 @@ pub fn format(
         if let Some(checker) = cfg.get_format_checker(schema) {
             if !checker(cfg, instance) {
                 errors.record_error(ValidationError::new_with_context(
-                    format!("{:?} invalid for {:?} format", instance, schema).as_str(),
+                    format!("{} invalid for {} format", instance.to_string(), schema.to_string()).as_str(),
                     instance_ctx,
                     schema_ctx,
                 ))?;
@@ -729,7 +732,7 @@ pub fn minLength(
         let count = instance.chars().count();
         if count < schema.as_u64().unwrap() as usize {
             errors.record_error(ValidationError::new_with_context(
-                format!("{} > minLength {:?}", instance.chars().count(), schema).as_str(),
+                format!("{} < minLength {}", instance.chars().count(), schema).as_str(),
                 instance_ctx,
                 schema_ctx,
             ))?;
@@ -752,7 +755,7 @@ pub fn maxLength(
         let count = instance.chars().count();
         if instance.chars().count() > schema.as_u64().unwrap() as usize {
             errors.record_error(ValidationError::new_with_context(
-                format!("{} < maxLength {:?}", count, schema).as_str(),
+                format!("{} < maxLength {}", count, schema).as_str(),
                 instance_ctx,
                 schema_ctx,
             ))?;
@@ -820,7 +823,7 @@ pub fn enum_(
     if let Array(enums) = schema {
         if !enums.iter().any(|val| val == instance) {
             errors.record_error(ValidationError::new_with_context(
-                format!("{:?} is not one of enum {:?}", instance, schema).as_str(),
+                format!("{} is not one of enum {}", instance.to_string(), schema.to_string()).as_str(),
                 instance_ctx,
                 schema_ctx,
             ))?;
@@ -903,7 +906,7 @@ pub fn type_(
 ) -> Option<()> {
     if !util::iter_or_once(schema).any(|x| single_type(instance, x)) {
         errors.record_error(ValidationError::new_with_context(
-            format!("{:?} is not of type {:?}", instance, schema).as_str(),
+            format!("{} is not of type {}", instance.to_string(), schema.to_string()).as_str(),
             instance_ctx,
             schema_ctx,
         ))?;
@@ -949,12 +952,13 @@ pub fn required(
     _ref_ctx: &Context,
     errors: &mut ErrorRecorder,
 ) -> Option<()> {
+    // TODO: Report all in a single error
     if let (Object(instance), Array(schema)) = (instance, schema) {
         for property in schema.iter() {
             if let Value::String(key) = property {
                 if !instance.contains_key(key) {
                     errors.record_error(ValidationError::new_with_context(
-                        &format!("required property {} is missing", key),
+                        &format!("required property {} is missing", property.to_string()),
                         instance_ctx,
                         schema_ctx,
                     ))?;
@@ -978,7 +982,7 @@ pub fn minProperties(
     if let (Object(instance), Value::Number(schema)) = (instance, schema) {
         if instance.len() < schema.as_u64().unwrap() as usize {
             errors.record_error(ValidationError::new_with_context(
-                format!("{} < minProperties {:?}", instance.len(), schema).as_str(),
+                format!("{} < minProperties {}", instance.len(), schema).as_str(),
                 instance_ctx,
                 schema_ctx,
             ))?;
@@ -1000,7 +1004,7 @@ pub fn maxProperties(
     if let (Object(instance), Value::Number(schema)) = (instance, schema) {
         if instance.len() > schema.as_u64().unwrap() as usize {
             errors.record_error(ValidationError::new_with_context(
-                format!("{} > maxProperties {:?}", instance.len(), schema).as_str(),
+                format!("{} > maxProperties {}", instance.len(), schema).as_str(),
                 instance_ctx,
                 schema_ctx,
             ))?;

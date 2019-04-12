@@ -27,7 +27,7 @@ impl<'a> Config<'a> {
         self.draft.get_draft_number()
     }
 
-    pub fn validate(&self, instance: &Value, schema: &Value, errors: &mut ErrorRecorder) {
+    pub fn validate(&self, instance: &Value, schema: &Value, errors: &mut ErrorRecorder) -> Option<()> {
         validators::descend(
             self,
             instance,
@@ -36,7 +36,7 @@ impl<'a> Config<'a> {
             &Context::new(),
             &Context::new_from(schema),
             errors,
-        );
+        )
     }
 
     pub fn get_resolver(&self) -> &Resolver<'a> {

@@ -1,5 +1,7 @@
+use itertools::Itertools;
 use serde_json::Value;
 
+use std::io::prelude::*;
 use std::error;
 use std::fmt;
 use url;
@@ -13,16 +15,41 @@ pub struct ValidationError {
     schema_path: Option<Vec<Value>>,
 }
 
+fn simple_to_string(value: &Value) -> String {
+    match value {
+        Value::String(v) => v.as_str().to_string(),
+        _ => value.to_string()
+    }
+}
+
+fn path_to_string(path: &Vec<Value>) -> String {
+    if path.len() == 0 {
+        ".".to_string()
+    } else {
+        path.iter().map(|x| simple_to_string(x)).join("/")
+    }
+}
+
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // let instance_path = self.instance_path.iter().rev().join("/");
-        // let schema_path = self.schema_path.iter().rev().join("/");
-        // write!(
-        //     f,
-        //     "At {} in schema {}: {}",
-        //     instance_path, schema_path, self.msg
-        // )
-        write!(f, "{}", self.msg)
+        if let (Some(instance_path), Some(schema_path)) = (&self.instance_path, &self.schema_path) {
+            write!(
+                f,
+                "At {} with schema at {}: {}",
+                path_to_string(&instance_path),
+                path_to_string(&schema_path),
+                self.msg
+            )
+        } else if let Some(schema_path) = &self.schema_path {
+            write!(
+                f,
+                "At schema {}: {}",
+                path_to_string(&schema_path),
+                self.msg
+            )
+        } else {
+            write!(f, "{}", self.msg)
+        }
     }
 }
 
@@ -38,6 +65,7 @@ impl From<url::ParseError> for ValidationError {
     }
 }
 
+/// Stores information about a single validation error.
 impl ValidationError {
     pub fn new(msg: &str) -> ValidationError {
         ValidationError {
@@ -65,21 +93,6 @@ impl ValidationError {
             schema_path: Some(schema_ctx.flatten()),
         }
     }
-
-    // pub fn from_errors(
-    //     msg: &str,
-    //     errors: &[ValidationError],
-    //     _stack: &ScopeStack,
-    // ) -> ValidationError {
-    //     ValidationError {
-    //         msg: format!(
-    //             "{}: [{}\n]",
-    //             msg,
-    //             join(errors.iter().map(|x| x.msg.as_str()), "\n    ")
-    //         ),
-    //         ..Default::default()
-    //     }
-    // }
 }
 
 pub trait ErrorRecorder {
@@ -136,6 +149,35 @@ impl FastFailErrorRecorder {
     pub fn new() -> FastFailErrorRecorder {
         FastFailErrorRecorder {
             ..Default::default()
+        }
+    }
+}
+
+pub struct ErrorRecorderStream<'a> {
+    stream: &'a mut Write,
+    has_error: bool
+}
+
+impl<'a> ErrorRecorder for ErrorRecorderStream<'a> {
+    fn record_error(&mut self, err: ValidationError) -> Option<()> {
+        self.has_error = true;
+        if write!(self.stream, "{}\n", err.to_string()).is_err() {
+            None
+        } else {
+            Some(())
+        }
+    }
+
+    fn has_errors(&self) -> bool {
+        self.has_error
+    }
+}
+
+impl<'a> ErrorRecorderStream<'a> {
+    pub fn new(stream: &'a mut Write) -> ErrorRecorderStream<'a> {
+        ErrorRecorderStream {
+            stream,
+            has_error: false
         }
     }
 }
