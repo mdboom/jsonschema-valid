@@ -204,8 +204,11 @@ pub fn additionalProperties(
                     if !bool && extras.peekable().peek().is_some() {
                         let mut extraProps = find_additional_properties(instance, parent_schema);
                         errors.record_error(ValidationError::new_with_context(
-                            format!("Additional properties are not allowed. Found {}", extraProps.join(", "))
-                                .as_str(),
+                            format!(
+                                "Additional properties are not allowed. Found {}",
+                                extraProps.join(", ")
+                            )
+                            .as_str(),
                             instance_ctx,
                             schema_ctx,
                         ))?;
@@ -370,7 +373,12 @@ pub fn const_(
 ) -> Option<()> {
     if instance != schema {
         errors.record_error(ValidationError::new_with_context(
-            format!("const doesn't match. Got {}, expected {}", instance.to_string(), schema.to_string()).as_str(),
+            format!(
+                "const doesn't match. Got {}, expected {}",
+                instance.to_string(),
+                schema.to_string()
+            )
+            .as_str(),
             instance_ctx,
             schema_ctx,
         ))?;
@@ -398,8 +406,10 @@ pub fn contains(
                 schema_ctx,
                 ref_ctx,
                 &mut FastFailErrorRecorder::new(),
-            ).is_some() {
-                return Some(())
+            )
+            .is_some()
+            {
+                return Some(());
             }
         }
         errors.record_error(ValidationError::new_with_context(
@@ -679,7 +689,12 @@ pub fn pattern(
             Ok(re) => {
                 if !re.is_match(instance) {
                     errors.record_error(ValidationError::new_with_context(
-                        format!("{} does not match pattern {}", instance.to_string(), schema.to_string()).as_str(),
+                        format!(
+                            "{} does not match pattern {}",
+                            instance.to_string(),
+                            schema.to_string()
+                        )
+                        .as_str(),
                         instance_ctx,
                         schema_ctx,
                     ))?;
@@ -708,7 +723,12 @@ pub fn format(
         if let Some(checker) = cfg.get_format_checker(schema) {
             if !checker(cfg, instance) {
                 errors.record_error(ValidationError::new_with_context(
-                    format!("{} invalid for {} format", instance.to_string(), schema.to_string()).as_str(),
+                    format!(
+                        "{} invalid for {} format",
+                        instance.to_string(),
+                        schema.to_string()
+                    )
+                    .as_str(),
                     instance_ctx,
                     schema_ctx,
                 ))?;
@@ -823,7 +843,12 @@ pub fn enum_(
     if let Array(enums) = schema {
         if !enums.iter().any(|val| val == instance) {
             errors.record_error(ValidationError::new_with_context(
-                format!("{} is not one of enum {}", instance.to_string(), schema.to_string()).as_str(),
+                format!(
+                    "{} is not one of enum {}",
+                    instance.to_string(),
+                    schema.to_string()
+                )
+                .as_str(),
                 instance_ctx,
                 schema_ctx,
             ))?;
@@ -906,7 +931,12 @@ pub fn type_(
 ) -> Option<()> {
     if !util::iter_or_once(schema).any(|x| single_type(instance, x)) {
         errors.record_error(ValidationError::new_with_context(
-            format!("{} is not of type {}", instance.to_string(), schema.to_string()).as_str(),
+            format!(
+                "{} is not of type {}",
+                instance.to_string(),
+                schema.to_string()
+            )
+            .as_str(),
             instance_ctx,
             schema_ctx,
         ))?;
@@ -1114,8 +1144,10 @@ pub fn oneOf(
                 instance_ctx,
                 &schema_ctx.push(&Value::Number(Number::from(index))),
                 ref_ctx,
-                &mut FastFailErrorRecorder::new()
-            ).is_some() {
+                &mut FastFailErrorRecorder::new(),
+            )
+            .is_some()
+            {
                 found_one = true;
                 break;
             }
@@ -1127,7 +1159,7 @@ pub fn oneOf(
                 instance_ctx,
                 schema_ctx,
             ))?;
-            return Some(())
+            return Some(());
         }
 
         let mut found_more = false;
@@ -1141,7 +1173,9 @@ pub fn oneOf(
                 &schema_ctx.push(&Value::Number(Number::from(index))),
                 ref_ctx,
                 &mut FastFailErrorRecorder::new(),
-            ).is_some() {
+            )
+            .is_some()
+            {
                 found_more = true;
                 break;
             }
@@ -1176,7 +1210,9 @@ pub fn not(
         schema_ctx,
         ref_ctx,
         &mut FastFailErrorRecorder::new(),
-    ).is_some() {
+    )
+    .is_some()
+    {
         errors.record_error(ValidationError::new_with_context(
             "not",
             instance_ctx,
@@ -1236,7 +1272,7 @@ pub fn if_(
         instance_ctx,
         schema_ctx,
         ref_ctx,
-        &mut FastFailErrorRecorder::new()
+        &mut FastFailErrorRecorder::new(),
     ) {
         Some(_) => {
             if parent_schema.contains_key("then") {
@@ -1247,9 +1283,12 @@ pub fn if_(
                         instance,
                         &then,
                         instance_ctx,
-                        &schema_ctx.parent.unwrap().push(&Value::String("then".to_string())),
+                        &schema_ctx
+                            .parent
+                            .unwrap()
+                            .push(&Value::String("then".to_string())),
                         ref_ctx,
-                        errors
+                        errors,
                     )?
                 }
             }
@@ -1263,9 +1302,12 @@ pub fn if_(
                         instance,
                         &else_,
                         instance_ctx,
-                        &schema_ctx.parent.unwrap().push(&Value::String("else".to_string())),
+                        &schema_ctx
+                            .parent
+                            .unwrap()
+                            .push(&Value::String("else".to_string())),
                         ref_ctx,
-                        errors
+                        errors,
                     )?
                 }
             }

@@ -1,9 +1,9 @@
 use itertools::Itertools;
 use serde_json::Value;
 
-use std::io::prelude::*;
 use std::error;
 use std::fmt;
+use std::io::prelude::*;
 use url;
 
 use context::Context;
@@ -18,7 +18,7 @@ pub struct ValidationError {
 fn simple_to_string(value: &Value) -> String {
     match value {
         Value::String(v) => v.as_str().to_string(),
-        _ => value.to_string()
+        _ => value.to_string(),
     }
 }
 
@@ -131,7 +131,7 @@ impl ValidationErrors {
 
 #[derive(Default)]
 pub struct FastFailErrorRecorder {
-    error: Option<ValidationError>
+    error: Option<ValidationError>,
 }
 
 impl ErrorRecorder for FastFailErrorRecorder {
@@ -155,7 +155,7 @@ impl FastFailErrorRecorder {
 
 pub struct ErrorRecorderStream<'a> {
     stream: &'a mut Write,
-    has_error: bool
+    has_error: bool,
 }
 
 impl<'a> ErrorRecorder for ErrorRecorderStream<'a> {
@@ -177,7 +177,7 @@ impl<'a> ErrorRecorderStream<'a> {
     pub fn new(stream: &'a mut Write) -> ErrorRecorderStream<'a> {
         ErrorRecorderStream {
             stream,
-            has_error: false
+            has_error: false,
         }
     }
 }

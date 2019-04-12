@@ -26,8 +26,8 @@ mod unique;
 mod util;
 mod validators;
 
-pub use error::ValidationErrors;
 pub use error::ValidationError;
+pub use error::ValidationErrors;
 
 /// Validates a given JSON instance against a given JSON schema, returning the
 /// errors, if any. draft may provide the schema draft to use. If not provided,
@@ -63,14 +63,11 @@ pub fn validate_to_stream(
 /// if valid. This function is more efficient than [validate](fn.validate.html)
 /// or [validate_to_stream](fn.validate_to_stream.html), because it stops at the
 /// first error.
-pub fn is_valid(
-    instance: &Value,
-    schema: &Value,
-    draft: Option<&schemas::Draft>,
-) -> bool {
+pub fn is_valid(instance: &Value, schema: &Value, draft: Option<&schemas::Draft>) -> bool {
     config::Config::from_schema(schema, draft)
         .unwrap()
-        .validate(instance, schema, &mut error::FastFailErrorRecorder::new()).is_some()
+        .validate(instance, schema, &mut error::FastFailErrorRecorder::new())
+        .is_some()
 }
 
 #[cfg(test)]

@@ -27,7 +27,12 @@ impl<'a> Config<'a> {
         self.draft.get_draft_number()
     }
 
-    pub fn validate(&self, instance: &Value, schema: &Value, errors: &mut ErrorRecorder) -> Option<()> {
+    pub fn validate(
+        &self,
+        instance: &Value,
+        schema: &Value,
+        errors: &mut ErrorRecorder,
+    ) -> Option<()> {
         validators::descend(
             self,
             instance,
