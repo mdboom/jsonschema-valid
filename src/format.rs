@@ -2,13 +2,15 @@ use std::net::Ipv4Addr;
 use std::net::Ipv6Addr;
 use std::str::FromStr;
 
-use chrono::datetime::DateTime;
+use chrono::DateTime;
 use regex::Regex;
 use url::{Host, Url};
 
 use config::Config;
 
 pub type FormatChecker = fn(cfg: &Config, value: &str) -> bool;
+
+// TODO: This set of formats is incomplete
 
 pub fn email(_cfg: &Config, value: &str) -> bool {
     value.contains('@')

@@ -23,7 +23,7 @@ pub type Validator = fn(
     errors: &mut ErrorRecorder,
 );
 
-pub fn descend<'a>(
+pub fn descend(
     cfg: &Config,
     instance: &Value,
     schema: &Value,
@@ -468,14 +468,12 @@ pub fn minimum_draft4(
                     schema_ctx,
                 ));
             }
-        } else {
-            if instance.as_f64() < minimum.as_f64() {
-                errors.record_error(ValidationError::new_with_context(
-                    format!("{:?} <= minimum {:?}", instance, schema).as_str(),
-                    instance_ctx,
-                    schema_ctx,
-                ));
-            }
+        } else if instance.as_f64() < minimum.as_f64() {
+            errors.record_error(ValidationError::new_with_context(
+                format!("{:?} <= minimum {:?}", instance, schema).as_str(),
+                instance_ctx,
+                schema_ctx,
+            ));
         }
     }
 }
@@ -524,14 +522,12 @@ pub fn maximum_draft4(
                     schema_ctx,
                 ));
             }
-        } else {
-            if instance.as_f64() > maximum.as_f64() {
-                errors.record_error(ValidationError::new_with_context(
-                    format!("{:?} > maximum {:?}", instance, schema).as_str(),
-                    instance_ctx,
-                    schema_ctx,
-                ));
-            }
+        } else if instance.as_f64() > maximum.as_f64() {
+            errors.record_error(ValidationError::new_with_context(
+                format!("{:?} > maximum {:?}", instance, schema).as_str(),
+                instance_ctx,
+                schema_ctx,
+            ));
         }
     }
 }
@@ -1230,20 +1226,18 @@ pub fn if_(
                 )
             }
         }
-    } else {
-        if parent_schema.contains_key("else") {
-            let else_ = &parent_schema["else"];
-            if let Object(_) = else_ {
-                descend(
-                    cfg,
-                    instance,
-                    &else_,
-                    instance_ctx,
-                    &schema_ctx.parent.unwrap().push(&Value::String("else".to_string())),
-                    ref_ctx,
-                    errors
-                )
-            }
+    } else if parent_schema.contains_key("else") {
+        let else_ = &parent_schema["else"];
+        if let Object(_) = else_ {
+            descend(
+                cfg,
+                instance,
+                &else_,
+                instance_ctx,
+                &schema_ctx.parent.unwrap().push(&Value::String("else".to_string())),
+                ref_ctx,
+                errors
+            )
         }
     }
 }

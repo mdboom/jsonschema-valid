@@ -14,12 +14,12 @@ impl<'a> Context<'a> {
     }
 
     pub fn new_from(x: &'a Value) -> Context<'a> {
-        Context { x: x, parent: None }
+        Context { x, parent: None }
     }
 
     pub fn push(&'a self, x: &'a Value) -> Context<'a> {
         Context {
-            x: x,
+            x,
             parent: Some(self),
         }
     }
@@ -38,5 +38,11 @@ impl<'a> Context<'a> {
         }
         result.reverse();
         result
+    }
+}
+
+impl<'a> Default for Context<'a> {
+    fn default() -> Self {
+        Self::new()
     }
 }
