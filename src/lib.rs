@@ -1,3 +1,9 @@
+//! # jsonschema-valid
+//!
+//! A simple crate to perform json schema validation.
+//!
+//! Supports JSON Schema drafts 4, 6, and 7.
+
 extern crate regex;
 #[macro_use]
 extern crate serde_json;
@@ -19,12 +25,17 @@ mod unique;
 mod util;
 mod validators;
 
+pub use error::ValidationErrors;
+pub use error::ValidationError;
+
+/// Validates a given JSON instance against a given JSON schema, returning the
+/// errors, if any.
 pub fn validate(
     instance: &Value,
     schema: &Value,
     draft: Option<&schemas::Draft>,
-) -> error::VecErrorRecorder {
-    let mut errors = error::VecErrorRecorder::new();
+) -> error::ValidationErrors {
+    let mut errors = error::ValidationErrors::new();
     config::Config::from_schema(schema, draft)
         .unwrap()
         .validate(instance, schema, &mut errors);

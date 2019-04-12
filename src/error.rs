@@ -83,18 +83,20 @@ impl ValidationError {
 }
 
 pub trait ErrorRecorder {
-    fn record_error(&mut self, error: ValidationError);
+    fn record_error(&mut self, error: ValidationError) -> Option<()>;
     fn has_errors(&self) -> bool;
 }
 
+/// Stores the ValidationErrors from a validation run.
 #[derive(Default)]
-pub struct VecErrorRecorder {
+pub struct ValidationErrors {
     errors: Vec<ValidationError>,
 }
 
-impl ErrorRecorder for VecErrorRecorder {
-    fn record_error(&mut self, error: ValidationError) {
-        self.errors.push(error)
+impl ErrorRecorder for ValidationErrors {
+    fn record_error(&mut self, error: ValidationError) -> Option<()> {
+        self.errors.push(error);
+        Some(())
     }
 
     fn has_errors(&self) -> bool {
@@ -102,9 +104,37 @@ impl ErrorRecorder for VecErrorRecorder {
     }
 }
 
-impl VecErrorRecorder {
-    pub fn new() -> VecErrorRecorder {
-        VecErrorRecorder {
+impl ValidationErrors {
+    pub fn new() -> ValidationErrors {
+        ValidationErrors {
+            ..Default::default()
+        }
+    }
+
+    pub fn get_errors(&self) -> &[ValidationError] {
+        &self.errors
+    }
+}
+
+#[derive(Default)]
+pub struct FastFailErrorRecorder {
+    error: Option<ValidationError>
+}
+
+impl ErrorRecorder for FastFailErrorRecorder {
+    fn record_error(&mut self, err: ValidationError) -> Option<()> {
+        self.error = Some(err);
+        None
+    }
+
+    fn has_errors(&self) -> bool {
+        self.error.is_some()
+    }
+}
+
+impl FastFailErrorRecorder {
+    pub fn new() -> FastFailErrorRecorder {
+        FastFailErrorRecorder {
             ..Default::default()
         }
     }
