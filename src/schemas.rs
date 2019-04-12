@@ -13,6 +13,75 @@ pub trait Draft {
     fn get_draft_number(&self) -> u8;
 }
 
+pub struct Draft7;
+
+impl Draft for Draft7 {
+    fn get_validator(&self, key: &str) -> Option<Validator> {
+        match key {
+            "$ref" => Some(validators::ref_ as Validator),
+            "additionalItems" => Some(validators::additionalItems as Validator),
+            "additionalProperties" => Some(validators::additionalProperties as Validator),
+            "allOf" => Some(validators::allOf as Validator),
+            "anyOf" => Some(validators::anyOf as Validator),
+            "const" => Some(validators::const_ as Validator),
+            "contains" => Some(validators::contains as Validator),
+            "dependencies" => Some(validators::dependencies as Validator),
+            "enum" => Some(validators::enum_ as Validator),
+            "exclusiveMaximum" => Some(validators::exclusiveMaximum as Validator),
+            "exclusiveMinimum" => Some(validators::exclusiveMinimum as Validator),
+            "format" => Some(validators::format as Validator),
+            "if" => Some(validators::if_ as Validator),
+            "items" => Some(validators::items as Validator),
+            "maxItems" => Some(validators::maxItems as Validator),
+            "maxLength" => Some(validators::maxLength as Validator),
+            "maxProperties" => Some(validators::maxProperties as Validator),
+            "maximum" => Some(validators::maximum as Validator),
+            "minItems" => Some(validators::minItems as Validator),
+            "minLength" => Some(validators::minLength as Validator),
+            "minProperties" => Some(validators::minProperties as Validator),
+            "minimum" => Some(validators::minimum as Validator),
+            "multipleOf" => Some(validators::multipleOf as Validator),
+            "not" => Some(validators::not as Validator),
+            "oneOf" => Some(validators::oneOf as Validator),
+            "pattern" => Some(validators::pattern as Validator),
+            "patternProperties" => Some(validators::patternProperties as Validator),
+            "properties" => Some(validators::properties as Validator),
+            "propertyNames" => Some(validators::propertyNames as Validator),
+            "required" => Some(validators::required as Validator),
+            "type" => Some(validators::type_ as Validator),
+            "uniqueItems" => Some(validators::uniqueItems as Validator),
+            _ => None,
+        }
+    }
+
+    fn get_schema(&self) -> &'static Value {
+        lazy_static! {
+            static ref DRAFT7: Value = serde_json::from_str(include_str!("draft7.json")).unwrap();
+        }
+        &DRAFT7
+    }
+
+    fn get_format_checker(&self, key: &str) -> Option<FormatChecker> {
+        match key {
+            "email" => Some(format::email as FormatChecker),
+            "ipv4" => Some(format::ipv4 as FormatChecker),
+            "ipv6" => Some(format::ipv6 as FormatChecker),
+            "hostname" => Some(format::hostname as FormatChecker),
+            "uri" => Some(format::uri as FormatChecker),
+            "uri_reference" => Some(format::uri_reference as FormatChecker),
+            "datetime" => Some(format::datetime as FormatChecker),
+            "regex" => Some(format::regex as FormatChecker),
+            "date" => Some(format::date as FormatChecker),
+            "time" => Some(format::time as FormatChecker),
+            _ => None,
+        }
+    }
+
+    fn get_draft_number(&self) -> u8 {
+        7
+    }
+}
+
 pub struct Draft6;
 
 impl Draft for Draft6 {
@@ -136,6 +205,7 @@ impl Draft for Draft4 {
 
 pub fn draft_from_url(url: &str) -> Option<&Draft> {
     match url {
+        "http://json-schema.org/draft-07/schema" => Some(&Draft7),
         "http://json-schema.org/draft-06/schema" => Some(&Draft6),
         "http://json-schema.org/draft-04/schema" => Some(&Draft4),
         _ => None,

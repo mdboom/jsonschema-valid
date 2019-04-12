@@ -85,6 +85,11 @@ mod tests {
     }
 
     #[test]
+    fn test_draft7() {
+        test_draft("draft7", &schemas::Draft7);
+    }
+
+    #[test]
     fn test_draft6() {
         test_draft("draft6", &schemas::Draft6);
     }

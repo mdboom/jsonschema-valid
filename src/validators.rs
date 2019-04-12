@@ -1193,3 +1193,57 @@ pub fn ref_(
         }
     }
 }
+
+pub fn if_(
+    cfg: &Config,
+    instance: &Value,
+    schema: &Value,
+    parent_schema: &Map<String, Value>,
+    instance_ctx: &Context,
+    schema_ctx: &Context,
+    ref_ctx: &Context,
+    errors: &mut ErrorRecorder,
+) {
+    let mut local_errors = VecErrorRecorder::new();
+    descend(
+        cfg,
+        instance,
+        schema,
+        instance_ctx,
+        schema_ctx,
+        ref_ctx,
+        &mut local_errors
+    );
+
+    if !local_errors.has_errors() {
+        if parent_schema.contains_key("then") {
+            let then = &parent_schema["then"];
+            if let Object(_) = then {
+                descend(
+                    cfg,
+                    instance,
+                    &then,
+                    instance_ctx,
+                    &schema_ctx.parent.unwrap().push(&Value::String("then".to_string())),
+                    ref_ctx,
+                    errors
+                )
+            }
+        }
+    } else {
+        if parent_schema.contains_key("else") {
+            let else_ = &parent_schema["else"];
+            if let Object(_) = else_ {
+                descend(
+                    cfg,
+                    instance,
+                    &else_,
+                    instance_ctx,
+                    &schema_ctx.parent.unwrap().push(&Value::String("else".to_string())),
+                    ref_ctx,
+                    errors
+                )
+            }
+        }
+    }
+}
