@@ -22,8 +22,8 @@ fn simple_to_string(value: &Value) -> String {
     }
 }
 
-fn path_to_string(path: &Vec<Value>) -> String {
-    if path.len() == 0 {
+fn path_to_string(path: &[Value]) -> String {
+    if path.is_empty() {
         ".".to_string()
     } else {
         path.iter().map(|x| simple_to_string(x)).join("/")
@@ -161,7 +161,7 @@ pub struct ErrorRecorderStream<'a> {
 impl<'a> ErrorRecorder for ErrorRecorderStream<'a> {
     fn record_error(&mut self, err: ValidationError) -> Option<()> {
         self.has_error = true;
-        if write!(self.stream, "{}\n", err.to_string()).is_err() {
+        if writeln!(self.stream, "{}", err.to_string()).is_err() {
             None
         } else {
             Some(())
