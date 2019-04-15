@@ -1,3 +1,4 @@
+/// Utility to determine whether a JSON array has all unique elements.
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::hash::Hasher;

@@ -163,7 +163,7 @@ impl Draft for Draft4 {
             "dependencies" => Some(validators::dependencies as Validator),
             "enum" => Some(validators::enum_ as Validator),
             "format" => Some(validators::format as Validator),
-            "items" => Some(validators::items_draft4 as Validator),
+            "items" => Some(validators::items as Validator),
             "maxItems" => Some(validators::maxItems as Validator),
             "maxLength" => Some(validators::maxLength as Validator),
             "maxProperties" => Some(validators::maxProperties as Validator),
@@ -216,6 +216,6 @@ pub fn draft_from_schema(schema: &Value) -> Option<&Draft> {
     schema
         .as_object()
         .and_then(|x| x.get("$schema"))
-        .and_then(|x| x.as_str())
+        .and_then(Value::as_str)
         .and_then(|x| draft_from_url(x))
 }

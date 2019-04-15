@@ -13,7 +13,7 @@ fn id_of(schema: &Value) -> Option<&str> {
         object
             .get("$id")
             .or_else(|| object.get("id"))
-            .and_then(|x| x.as_str())
+            .and_then(Value::as_str)
     } else {
         None
     }

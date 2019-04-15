@@ -1,3 +1,4 @@
+/// Utilities to track the location within a JSON document
 use serde_json::Value;
 
 pub struct Context<'a> {
@@ -21,6 +22,13 @@ impl<'a> Context<'a> {
         Context {
             x,
             parent: Some(self),
+        }
+    }
+
+    pub fn replace(&'a self, x: &'a Value) -> Context<'a> {
+        Context {
+            x,
+            parent: self.parent,
         }
     }
 
