@@ -12,6 +12,8 @@ extern crate lazy_static;
 extern crate chrono;
 extern crate itertools;
 extern crate url;
+extern crate iri_string;
+extern crate json_pointer;
 
 use serde_json::Value;
 use std::io::prelude::*;
