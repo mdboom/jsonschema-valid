@@ -12,6 +12,30 @@ use error::{ErrorRecorder, FastFailErrorRecorder, ValidationError};
 use unique;
 use util;
 
+/// The type of the individual validation functions.
+///
+/// # Arguments
+///
+/// * `cfg`: Settings for the current validation run that don't change
+///   during the run.
+/// * `instance`: The part of the JSON document being validated.
+/// * `schema`: The part of the JSON schema that the JSON document is being
+///   validated against.
+/// * `parent_schema`: The parent node of the `schema`.  Used to look up
+///   sibling attributes, such as `if`/`then`/`else`.
+/// * `instance_ctx`: The context (path) of `instance` within the root document.
+/// * `schema_ctx`: The context (path) of `schema` within the root schema.
+/// * `ref_ctx`: The context in which to look up `$ref` elements. This is a
+///   stack that is pushed/popped when entering `$ref` contexts.  It is always
+///   the top element in which JSON path references are resolved.
+/// * `errors`: An object to report errors. Depending on the concrete
+///   implementation, this might store all errors in a `Vec`, or it might print
+///   them to a stream immediately.
+///
+/// # Returns
+///
+/// * `Some(())`: indicates that validation should continue
+/// * `None`: indicates that validation should abort
 pub type Validator = fn(
     cfg: &Config,
     instance: &Value,
@@ -23,6 +47,8 @@ pub type Validator = fn(
     errors: &mut ErrorRecorder,
 ) -> Option<()>;
 
+// The top-level validation function that performs all of the concrete
+// validation functions at a given instance/schema pair.
 pub fn descend(
     cfg: &Config,
     instance: &Value,
@@ -79,6 +105,9 @@ pub fn descend(
     }
     Some(())
 }
+
+// The validation functions below all correspond to individual schema checks
+// defined in the JSON schema specification.
 
 pub fn patternProperties(
     cfg: &Config,
@@ -1043,7 +1072,9 @@ pub fn anyOf(
                 &schema_ctx.push(&index.into()),
                 ref_ctx,
                 &mut FastFailErrorRecorder::new(),
-            ).is_some() {
+            )
+            .is_some()
+            {
                 return Some(());
             }
         }

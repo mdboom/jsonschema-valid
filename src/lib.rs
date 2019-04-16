@@ -10,10 +10,10 @@ extern crate serde_json;
 #[macro_use]
 extern crate lazy_static;
 extern crate chrono;
-extern crate itertools;
-extern crate url;
 extern crate iri_string;
+extern crate itertools;
 extern crate json_pointer;
+extern crate url;
 
 use serde_json::Value;
 use std::io::prelude::*;
@@ -34,41 +34,94 @@ pub use error::ValidationErrors;
 /// Validates a given JSON instance against a given JSON schema, returning the
 /// errors, if any. draft may provide the schema draft to use. If not provided,
 /// it will be determined automatically from the schema.
+///
+/// # Arguments
+///
+/// * `instance`: The JSON document to validate
+/// * `schema`: The JSON schema to validate against
+/// * `draft`: The draft of the JSON schema specification to use. If `None`, the
+///   draft will be automatically determined from the `schema`.
+/// * `validate_schema`: When `true`, validate the schema against the metaschema
+///   first.
+///
+/// # Returns
+///
+/// * `errors`: A vector of `ValidationError` found during validation.
 pub fn validate(
     instance: &Value,
     schema: &Value,
     draft: Option<&schemas::Draft>,
+    validate_schema: bool,
 ) -> error::ValidationErrors {
     let mut errors = error::ValidationErrors::new();
     config::Config::from_schema(schema, draft)
         .unwrap()
-        .validate(instance, schema, &mut errors);
+        .validate(instance, schema, &mut errors, validate_schema);
     errors
 }
 
 /// Validates a given JSON instance against a given JSON schema, writing the
 /// errors to the given stream. draft may provide the schema draft to use. If
 /// not provided, it will be determined automatically from the schema.
+///
+/// # Arguments
+///
+/// * `stream`: An object to write errors to.
+/// * `instance`: The JSON document to validate
+/// * `schema`: The JSON schema to validate against
+/// * `draft`: The draft of the JSON schema specification to use. If `None`, the
+///   draft will be automatically determined from the `schema`.
+/// * `validate_schema`: When `true`, validate the schema against the metaschema
+///   first.
+///
+/// # Returns
+///
+/// * `Some(())`: No errors were found.
+/// * `None`: At least one error was found.
 pub fn validate_to_stream(
     stream: &mut Write,
     instance: &Value,
     schema: &Value,
     draft: Option<&schemas::Draft>,
+    validate_schema: bool,
 ) -> Option<()> {
     let mut errors = error::ErrorRecorderStream::new(stream);
     config::Config::from_schema(schema, draft)
         .unwrap()
-        .validate(instance, schema, &mut errors)
+        .validate(instance, schema, &mut errors, validate_schema)
 }
 
 /// Validates a given JSON instance against a given JSON schema, returning true
 /// if valid. This function is more efficient than [validate](fn.validate.html)
 /// or [validate_to_stream](fn.validate_to_stream.html), because it stops at the
 /// first error.
-pub fn is_valid(instance: &Value, schema: &Value, draft: Option<&schemas::Draft>) -> bool {
+///
+/// # Arguments
+///
+/// * `instance`: The JSON document to validate
+/// * `schema`: The JSON schema to validate against
+/// * `draft`: The draft of the JSON schema specification to use. If `None`, the
+///   draft will be automatically determined from the `schema`.
+/// * `validate_schema`: When `true`, validate the schema against the metaschema
+///   first.
+///
+/// # Returns
+///
+/// * `true`: `instance` is valid against `schema`.
+pub fn is_valid(
+    instance: &Value,
+    schema: &Value,
+    draft: Option<&schemas::Draft>,
+    validate_schema: bool,
+) -> bool {
     config::Config::from_schema(schema, draft)
         .unwrap()
-        .validate(instance, schema, &mut error::FastFailErrorRecorder::new())
+        .validate(
+            instance,
+            schema,
+            &mut error::FastFailErrorRecorder::new(),
+            validate_schema,
+        )
         .is_some()
 }
 
@@ -116,9 +169,9 @@ mod tests {
                         let data = test.get("data").unwrap();
                         let valid = test.get("valid").unwrap();
                         if let Value::Bool(expected_valid) = valid {
-                            let result = validate(&data, &schema, Some(draft));
+                            let result = validate(&data, &schema, Some(draft), true);
                             assert_eq!(!result.has_errors(), *expected_valid);
-                            let result2 = is_valid(&data, &schema, Some(draft));
+                            let result2 = is_valid(&data, &schema, Some(draft), true);
                             assert_eq!(result2, *expected_valid);
                         }
                     }

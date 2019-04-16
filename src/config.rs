@@ -27,12 +27,33 @@ impl<'a> Config<'a> {
         self.draft.get_draft_number()
     }
 
+    pub fn get_metaschema(&self) -> &Value {
+        self.draft.get_schema()
+    }
+
     pub fn validate(
         &self,
         instance: &Value,
         schema: &Value,
         errors: &mut ErrorRecorder,
+        validate_schema: bool,
     ) -> Option<()> {
+        if validate_schema {
+            let metaschema = self.get_metaschema();
+            validators::descend(
+                self,
+                schema,
+                metaschema,
+                &Context::new(),
+                &Context::new(),
+                &Context::new_from(metaschema),
+                errors,
+            );
+            if errors.has_errors() {
+                return None;
+            }
+        }
+
         validators::descend(
             self,
             instance,
