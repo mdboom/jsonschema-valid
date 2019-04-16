@@ -81,7 +81,7 @@ impl<'a> Config<'a> {
             schema,
             resolver: Resolver::from_schema(schema)?,
             draft: draft.unwrap_or_else(|| {
-                schemas::draft_from_schema(schema).unwrap_or_else(|| &schemas::Draft6)
+                schemas::draft_from_schema(schema).unwrap_or_else(|| &schemas::Draft7)
             }),
         })
     }

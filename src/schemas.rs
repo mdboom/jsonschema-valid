@@ -63,20 +63,20 @@ impl Draft for Draft7 {
 
     fn get_format_checker(&self, key: &str) -> Option<FormatChecker> {
         match key {
+            "date" => Some(format::date as FormatChecker),
+            "date-time" => Some(format::datetime as FormatChecker),
             "email" => Some(format::email as FormatChecker),
+            "hostname" => Some(format::hostname as FormatChecker),
             "idn-email" => Some(format::email as FormatChecker),
             "ipv4" => Some(format::ipv4 as FormatChecker),
             "ipv6" => Some(format::ipv6 as FormatChecker),
-            "hostname" => Some(format::hostname as FormatChecker),
             "iri" => Some(format::iri as FormatChecker),
             "iri-reference" => Some(format::iri_reference as FormatChecker),
+            "json-pointer" => Some(format::json_pointer as FormatChecker),
+            "regex" => Some(format::regex as FormatChecker),
+            "time" => Some(format::time as FormatChecker),
             "uri" => Some(format::uri as FormatChecker),
             "uri-reference" => Some(format::uri_reference as FormatChecker),
-            "date-time" => Some(format::datetime as FormatChecker),
-            "regex" => Some(format::regex as FormatChecker),
-            "date" => Some(format::date as FormatChecker),
-            "time" => Some(format::time as FormatChecker),
-            "json-pointer" => Some(format::json_pointer as FormatChecker),
             "uri-template" => Some(format::uri_template as FormatChecker),
             _ => None,
         }
@@ -136,17 +136,17 @@ impl Draft for Draft6 {
 
     fn get_format_checker(&self, key: &str) -> Option<FormatChecker> {
         match key {
+            "date" => Some(format::date as FormatChecker),
+            "date-time" => Some(format::datetime as FormatChecker),
             "email" => Some(format::email as FormatChecker),
+            "hostname" => Some(format::hostname as FormatChecker),
             "ipv4" => Some(format::ipv4 as FormatChecker),
             "ipv6" => Some(format::ipv6 as FormatChecker),
-            "hostname" => Some(format::hostname as FormatChecker),
+            "json-pointer" => Some(format::json_pointer as FormatChecker),
+            "regex" => Some(format::regex as FormatChecker),
+            "time" => Some(format::time as FormatChecker),
             "uri" => Some(format::uri as FormatChecker),
             "uri-reference" => Some(format::uri_reference as FormatChecker),
-            "date-time" => Some(format::datetime as FormatChecker),
-            "regex" => Some(format::regex as FormatChecker),
-            "date" => Some(format::date as FormatChecker),
-            "time" => Some(format::time as FormatChecker),
-            "json-pointer" => Some(format::json_pointer as FormatChecker),
             "uri-template" => Some(format::uri_template as FormatChecker),
             _ => None,
         }
@@ -201,13 +201,13 @@ impl Draft for Draft4 {
 
     fn get_format_checker(&self, key: &str) -> Option<FormatChecker> {
         match key {
+            "date-time" => Some(format::datetime as FormatChecker),
             "email" => Some(format::email as FormatChecker),
+            "hostname" => Some(format::hostname as FormatChecker),
             "ipv4" => Some(format::ipv4 as FormatChecker),
             "ipv6" => Some(format::ipv6 as FormatChecker),
-            "hostname" => Some(format::hostname as FormatChecker),
-            "uri" => Some(format::uri as FormatChecker),
-            "date-time" => Some(format::datetime as FormatChecker),
             "regex" => Some(format::regex as FormatChecker),
+            "uri" => Some(format::uri as FormatChecker),
             _ => None,
         }
     }
