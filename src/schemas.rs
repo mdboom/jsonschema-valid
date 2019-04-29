@@ -217,7 +217,7 @@ impl Draft for Draft4 {
     }
 }
 
-pub fn draft_from_url(url: &str) -> Option<&Draft> {
+pub fn draft_from_url(url: &str) -> Option<&'static dyn Draft> {
     match url {
         "http://json-schema.org/draft-07/schema" => Some(&Draft7),
         "http://json-schema.org/draft-06/schema" => Some(&Draft6),
@@ -226,7 +226,7 @@ pub fn draft_from_url(url: &str) -> Option<&Draft> {
     }
 }
 
-pub fn draft_from_schema(schema: &Value) -> Option<&Draft> {
+pub fn draft_from_schema(schema: &Value) -> Option<&'static dyn Draft> {
     schema
         .as_object()
         .and_then(|x| x.get("$schema"))
