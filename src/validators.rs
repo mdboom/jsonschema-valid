@@ -47,8 +47,8 @@ pub type Validator = fn(
     errors: &mut dyn ErrorRecorder,
 ) -> Option<()>;
 
-// The top-level validation function that performs all of the concrete
-// validation functions at a given instance/schema pair.
+/// The top-level validation function that performs all of the concrete
+/// validation functions at a given instance/schema pair.
 pub fn descend(
     cfg: &Config,
     instance: &Value,
