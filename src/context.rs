@@ -1,4 +1,5 @@
-/// Utilities to track the location within a JSON document
+//! Utilities to track the location within a JSON document
+
 use serde_json::Value;
 
 pub struct Context<'a> {
