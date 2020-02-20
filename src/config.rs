@@ -1,12 +1,12 @@
 use serde_json::Value;
 
-use context::Context;
-use error::{ErrorRecorder, ValidationError};
-use format::FormatChecker;
-use resolver::Resolver;
-use schemas;
-use validators;
-use validators::Validator;
+use crate::context::Context;
+use crate::error::{ErrorRecorder, ValidationError};
+use crate::format::FormatChecker;
+use crate::resolver::Resolver;
+use crate::schemas;
+use crate::validators;
+use crate::validators::Validator;
 
 pub struct Config<'a> {
     schema: &'a Value,

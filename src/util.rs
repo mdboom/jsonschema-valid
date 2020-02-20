@@ -1,6 +1,7 @@
 use std::iter;
 
-use serde_json::{Map, Value};
+use lazy_static::lazy_static;
+use serde_json::{json, Map, Value};
 
 pub fn bool_to_object_schema(schema: &Value) -> &Value {
     lazy_static! {

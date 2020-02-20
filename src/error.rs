@@ -4,9 +4,8 @@ use serde_json::Value;
 use std::error;
 use std::fmt;
 use std::io::prelude::*;
-use url;
 
-use context::Context;
+use crate::context::Context;
 
 #[derive(Default, Debug)]
 pub struct ValidationError {

@@ -4,13 +4,13 @@
 use itertools::Itertools;
 use regex;
 
-use serde_json::{Map, Value, Value::Array, Value::Bool, Value::Object};
+use serde_json::{json, Map, Value, Value::Array, Value::Bool, Value::Object};
 
-use config::Config;
-use context::Context;
-use error::{ErrorRecorder, FastFailErrorRecorder, ValidationError};
-use unique;
-use util;
+use crate::config::Config;
+use crate::context::Context;
+use crate::error::{ErrorRecorder, FastFailErrorRecorder, ValidationError};
+use crate::unique;
+use crate::util;
 
 /// The type of the individual validation functions.
 ///

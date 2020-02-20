@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 
 use serde_json::Value;
-use url;
 
-use context::Context;
-use error::ValidationError;
-use schemas;
+use crate::context::Context;
+use crate::error::ValidationError;
+use crate::schemas;
 // TODO: Make the choice of resolver dynamic
 
 fn id_of(schema: &Value) -> Option<&str> {

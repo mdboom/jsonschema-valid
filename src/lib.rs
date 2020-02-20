@@ -4,19 +4,9 @@
 //!
 //! Supports JSON Schema drafts 4, 6, and 7.
 
-extern crate regex;
-#[macro_use]
-extern crate serde_json;
-#[macro_use]
-extern crate lazy_static;
-extern crate chrono;
-extern crate iri_string;
-extern crate itertools;
-extern crate json_pointer;
-extern crate url;
+use std::io::prelude::*;
 
 use serde_json::Value;
-use std::io::prelude::*;
 
 mod config;
 mod context;
@@ -28,8 +18,8 @@ mod unique;
 mod util;
 mod validators;
 
-pub use error::ValidationError;
-pub use error::ValidationErrors;
+pub use crate::error::ValidationError;
+pub use crate::error::ValidationErrors;
 
 /// Validates a given JSON instance against a given JSON schema, returning the
 /// errors, if any. draft may provide the schema draft to use. If not provided,
@@ -129,7 +119,7 @@ pub fn is_valid(
 mod tests {
     use super::*;
 
-    use error::ErrorRecorder;
+    use crate::error::ErrorRecorder;
     use std::fs;
     use std::path::PathBuf;
 
