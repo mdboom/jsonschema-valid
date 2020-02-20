@@ -11,7 +11,7 @@ use validators::Validator;
 pub struct Config<'a> {
     schema: &'a Value,
     resolver: Resolver<'a>,
-    draft: &'a schemas::Draft,
+    draft: &'a dyn schemas::Draft,
 }
 
 impl<'a> Config<'a> {
@@ -35,7 +35,7 @@ impl<'a> Config<'a> {
         &self,
         instance: &Value,
         schema: &Value,
-        errors: &mut ErrorRecorder,
+        errors: &mut dyn ErrorRecorder,
         validate_schema: bool,
     ) -> Option<()> {
         if validate_schema {
@@ -75,7 +75,7 @@ impl<'a> Config<'a> {
 
     pub fn from_schema(
         schema: &'a Value,
-        draft: Option<&'a schemas::Draft>,
+        draft: Option<&'a dyn schemas::Draft>,
     ) -> Result<Config<'a>, ValidationError> {
         Ok(Config {
             schema,

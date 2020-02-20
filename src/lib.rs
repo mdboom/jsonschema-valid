@@ -50,7 +50,7 @@ pub use error::ValidationErrors;
 pub fn validate(
     instance: &Value,
     schema: &Value,
-    draft: Option<&schemas::Draft>,
+    draft: Option<&dyn schemas::Draft>,
     validate_schema: bool,
 ) -> error::ValidationErrors {
     let mut errors = error::ValidationErrors::new();
@@ -79,10 +79,10 @@ pub fn validate(
 /// * `Some(())`: No errors were found.
 /// * `None`: At least one error was found.
 pub fn validate_to_stream(
-    stream: &mut Write,
+    stream: &mut dyn Write,
     instance: &Value,
     schema: &Value,
-    draft: Option<&schemas::Draft>,
+    draft: Option<&dyn schemas::Draft>,
     validate_schema: bool,
 ) -> Option<()> {
     let mut errors = error::ErrorRecorderStream::new(stream);
@@ -111,7 +111,7 @@ pub fn validate_to_stream(
 pub fn is_valid(
     instance: &Value,
     schema: &Value,
-    draft: Option<&schemas::Draft>,
+    draft: Option<&dyn schemas::Draft>,
     validate_schema: bool,
 ) -> bool {
     config::Config::from_schema(schema, draft)
@@ -136,7 +136,7 @@ mod tests {
     // Test files we know will fail.
     const KNOWN_FAILURES: &'static [&'static str] = &["refRemote.json"];
 
-    fn test_draft(dirname: &str, draft: &schemas::Draft) {
+    fn test_draft(dirname: &str, draft: &dyn schemas::Draft) {
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         path.push("JSON-Schema-Test-Suite/tests");
         path.push(dirname);

@@ -20,7 +20,7 @@ pub fn bool_to_object_schema(schema: &Value) -> &Value {
     }
 }
 
-pub fn iter_or_once<'a>(instance: &'a Value) -> Box<Iterator<Item = &'a Value> + 'a> {
+pub fn iter_or_once<'a>(instance: &'a Value) -> Box<dyn Iterator<Item = &'a Value> + 'a> {
     match instance {
         Value::Array(array) => Box::new(array.iter()),
         _ => Box::new(iter::once(instance)),

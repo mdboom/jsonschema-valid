@@ -58,7 +58,7 @@ impl<'a> PartialEq for ValueWrapper<'a> {
 
 impl<'a> Eq for ValueWrapper<'a> {}
 
-pub fn has_unique_elements(iter: &mut Iterator<Item = &Value>) -> bool {
+pub fn has_unique_elements(iter: &mut dyn Iterator<Item = &Value>) -> bool {
     let mut uniq = HashSet::new();
     iter.map(|x| ValueWrapper { x: &x })
         .all(move |x| uniq.insert(x))

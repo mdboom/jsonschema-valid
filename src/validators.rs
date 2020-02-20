@@ -44,7 +44,7 @@ pub type Validator = fn(
     instance_ctx: &Context,
     schema_ctx: &Context,
     ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()>;
 
 // The top-level validation function that performs all of the concrete
@@ -56,7 +56,7 @@ pub fn descend(
     instance_ctx: &Context,
     schema_ctx: &Context,
     ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     match schema {
         Bool(b) => {
@@ -117,7 +117,7 @@ pub fn patternProperties(
     instance_ctx: &Context,
     schema_ctx: &Context,
     ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let (Object(instance), Object(schema)) = (instance, schema) {
         for (pattern, subschema) in schema.iter() {
@@ -149,7 +149,7 @@ pub fn propertyNames(
     instance_ctx: &Context,
     schema_ctx: &Context,
     ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let Object(instance) = instance {
         for property in instance.keys() {
@@ -171,7 +171,7 @@ pub fn propertyNames(
 fn find_additional_properties<'a>(
     instance: &'a Map<String, Value>,
     schema: &'a Map<String, Value>,
-) -> Box<Iterator<Item = &'a String> + 'a> {
+) -> Box<dyn Iterator<Item = &'a String> + 'a> {
     let properties = schema.get("properties").and_then(Value::as_object);
     let pattern_regexes = schema
         .get("patternProperties")
@@ -205,7 +205,7 @@ pub fn additionalProperties(
     instance_ctx: &Context,
     schema_ctx: &Context,
     ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let Object(instance) = instance {
         let mut extras = find_additional_properties(instance, parent_schema);
@@ -253,7 +253,7 @@ pub fn items(
     instance_ctx: &Context,
     schema_ctx: &Context,
     ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let Array(instance) = instance {
         let items = if cfg.get_draft_number() >= 6 {
@@ -303,7 +303,7 @@ pub fn additionalItems(
     instance_ctx: &Context,
     schema_ctx: &Context,
     ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let (Array(instance), Some(Array(items))) = (instance, parent_schema.get("items")) {
         match schema {
@@ -343,7 +343,7 @@ pub fn const_(
     instance_ctx: &Context,
     schema_ctx: &Context,
     _ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if instance != schema {
         errors.record_error(ValidationError::new_with_context(
@@ -368,7 +368,7 @@ pub fn contains(
     instance_ctx: &Context,
     schema_ctx: &Context,
     ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let Array(instance) = instance {
         for (index, item) in instance.iter().enumerate() {
@@ -403,7 +403,7 @@ pub fn exclusiveMinimum(
     instance_ctx: &Context,
     schema_ctx: &Context,
     _ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let (Value::Number(instance), Value::Number(schema)) = (instance, schema) {
         if instance.as_f64() <= schema.as_f64() {
@@ -425,7 +425,7 @@ pub fn exclusiveMaximum(
     instance_ctx: &Context,
     schema_ctx: &Context,
     _ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let (Value::Number(instance), Value::Number(schema)) = (instance, schema) {
         if instance.as_f64() >= schema.as_f64() {
@@ -447,7 +447,7 @@ pub fn minimum_draft4(
     instance_ctx: &Context,
     schema_ctx: &Context,
     _ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let (Value::Number(instance), Value::Number(minimum)) = (instance, schema) {
         if parent_schema
@@ -481,7 +481,7 @@ pub fn minimum(
     instance_ctx: &Context,
     schema_ctx: &Context,
     _ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let (Value::Number(instance), Value::Number(schema)) = (instance, schema) {
         if instance.as_f64() < schema.as_f64() {
@@ -503,7 +503,7 @@ pub fn maximum_draft4(
     instance_ctx: &Context,
     schema_ctx: &Context,
     _ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let (Value::Number(instance), Value::Number(maximum)) = (instance, schema) {
         if parent_schema
@@ -537,7 +537,7 @@ pub fn maximum(
     instance_ctx: &Context,
     schema_ctx: &Context,
     _ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let (Value::Number(instance), Value::Number(schema)) = (instance, schema) {
         if instance.as_f64() > schema.as_f64() {
@@ -560,7 +560,7 @@ pub fn multipleOf(
     instance_ctx: &Context,
     schema_ctx: &Context,
     _ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let (Value::Number(instance), Value::Number(schema)) = (instance, schema) {
         let failed = if schema.is_f64() {
@@ -590,7 +590,7 @@ pub fn minItems(
     instance_ctx: &Context,
     schema_ctx: &Context,
     _ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let (Array(instance), Value::Number(schema)) = (instance, schema) {
         if instance.len() < schema.as_u64().unwrap() as usize {
@@ -612,7 +612,7 @@ pub fn maxItems(
     instance_ctx: &Context,
     schema_ctx: &Context,
     _ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let (Array(instance), Value::Number(schema)) = (instance, schema) {
         if instance.len() > schema.as_u64().unwrap() as usize {
@@ -634,7 +634,7 @@ pub fn uniqueItems(
     instance_ctx: &Context,
     schema_ctx: &Context,
     _ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let (Array(instance), Bool(schema)) = (instance, schema) {
         if *schema && !unique::has_unique_elements(&mut instance.iter()) {
@@ -656,7 +656,7 @@ pub fn pattern(
     instance_ctx: &Context,
     schema_ctx: &Context,
     _ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let (Value::String(instance), Value::String(schema)) = (instance, schema) {
         if let Ok(re) = regex::Regex::new(schema) {
@@ -685,7 +685,7 @@ pub fn format(
     instance_ctx: &Context,
     schema_ctx: &Context,
     _ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let (Value::String(instance), Value::String(schema)) = (instance, schema) {
         if let Some(checker) = cfg.get_format_checker(schema) {
@@ -714,7 +714,7 @@ pub fn minLength(
     instance_ctx: &Context,
     schema_ctx: &Context,
     _ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let (Value::String(instance), Value::Number(schema)) = (instance, schema) {
         let count = instance.chars().count();
@@ -737,7 +737,7 @@ pub fn maxLength(
     instance_ctx: &Context,
     schema_ctx: &Context,
     _ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let (Value::String(instance), Value::Number(schema)) = (instance, schema) {
         let count = instance.chars().count();
@@ -760,7 +760,7 @@ pub fn dependencies(
     instance_ctx: &Context,
     schema_ctx: &Context,
     ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let (Object(object), Object(schema)) = (instance, schema) {
         for (property, dependency) in schema.iter() {
@@ -806,7 +806,7 @@ pub fn enum_(
     instance_ctx: &Context,
     schema_ctx: &Context,
     _ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let Array(enums) = schema {
         if !enums.iter().any(|val| val == instance) {
@@ -895,7 +895,7 @@ pub fn type_(
     instance_ctx: &Context,
     schema_ctx: &Context,
     _ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if !util::iter_or_once(schema).any(|x| single_type(instance, x)) {
         errors.record_error(ValidationError::new_with_context(
@@ -920,7 +920,7 @@ pub fn properties(
     instance_ctx: &Context,
     schema_ctx: &Context,
     ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let (Object(instance), Object(schema)) = (instance, schema) {
         for (property, subschema) in schema.iter() {
@@ -948,7 +948,7 @@ pub fn required(
     instance_ctx: &Context,
     schema_ctx: &Context,
     _ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let (Object(instance), Array(schema)) = (instance, schema) {
         let missing_properties: Vec<&str> = schema
@@ -980,7 +980,7 @@ pub fn minProperties(
     instance_ctx: &Context,
     schema_ctx: &Context,
     _ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let (Object(instance), Value::Number(schema)) = (instance, schema) {
         if instance.len() < schema.as_u64().unwrap() as usize {
@@ -1002,7 +1002,7 @@ pub fn maxProperties(
     instance_ctx: &Context,
     schema_ctx: &Context,
     _ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let (Object(instance), Value::Number(schema)) = (instance, schema) {
         if instance.len() > schema.as_u64().unwrap() as usize {
@@ -1024,7 +1024,7 @@ pub fn allOf(
     instance_ctx: &Context,
     schema_ctx: &Context,
     ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let Array(schema) = schema {
         for (index, subschema) in schema.iter().enumerate() {
@@ -1055,7 +1055,7 @@ pub fn anyOf(
     instance_ctx: &Context,
     schema_ctx: &Context,
     ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let Array(schema) = schema {
         for (index, subschema) in schema.iter().enumerate() {
@@ -1095,7 +1095,7 @@ pub fn oneOf(
     instance_ctx: &Context,
     schema_ctx: &Context,
     ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let Array(schema) = schema {
         let mut oneOf = schema.iter().enumerate();
@@ -1173,7 +1173,7 @@ pub fn not(
     instance_ctx: &Context,
     schema_ctx: &Context,
     ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if descend(
         cfg,
@@ -1203,7 +1203,7 @@ pub fn ref_(
     instance_ctx: &Context,
     schema_ctx: &Context,
     ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     if let Value::String(sref) = schema {
         match cfg
@@ -1236,7 +1236,7 @@ pub fn if_(
     instance_ctx: &Context,
     schema_ctx: &Context,
     ref_ctx: &Context,
-    errors: &mut ErrorRecorder,
+    errors: &mut dyn ErrorRecorder,
 ) -> Option<()> {
     match descend(
         cfg,
