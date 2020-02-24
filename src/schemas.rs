@@ -1,10 +1,10 @@
-use serde_json;
+use lazy_static::lazy_static;
 use serde_json::Value;
 
-use format;
-use format::FormatChecker;
-use validators;
-use validators::Validator;
+use crate::format;
+use crate::format::FormatChecker;
+use crate::validators;
+use crate::validators::Validator;
 
 pub trait Draft {
     fn get_validator(&self, key: &str) -> Option<Validator>;

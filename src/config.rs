@@ -1,17 +1,17 @@
 use serde_json::Value;
 
-use context::Context;
-use error::{ErrorRecorder, ValidationError};
-use format::FormatChecker;
-use resolver::Resolver;
-use schemas;
-use validators;
-use validators::Validator;
+use crate::context::Context;
+use crate::error::{ErrorRecorder, ValidationError};
+use crate::format::FormatChecker;
+use crate::resolver::Resolver;
+use crate::schemas;
+use crate::validators;
+use crate::validators::Validator;
 
 pub struct Config<'a> {
     schema: &'a Value,
     resolver: Resolver<'a>,
-    draft: &'a schemas::Draft,
+    draft: &'a dyn schemas::Draft,
 }
 
 impl<'a> Config<'a> {
@@ -35,7 +35,7 @@ impl<'a> Config<'a> {
         &self,
         instance: &Value,
         schema: &Value,
-        errors: &mut ErrorRecorder,
+        errors: &mut dyn ErrorRecorder,
         validate_schema: bool,
     ) -> Option<()> {
         if validate_schema {
@@ -75,7 +75,7 @@ impl<'a> Config<'a> {
 
     pub fn from_schema(
         schema: &'a Value,
-        draft: Option<&'a schemas::Draft>,
+        draft: Option<&'a dyn schemas::Draft>,
     ) -> Result<Config<'a>, ValidationError> {
         Ok(Config {
             schema,

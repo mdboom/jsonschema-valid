@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 
 use serde_json::Value;
-use url;
 
-use context::Context;
-use error::ValidationError;
-use schemas;
+use crate::context::Context;
+use crate::error::ValidationError;
+use crate::schemas;
 // TODO: Make the choice of resolver dynamic
 
 fn id_of(schema: &Value) -> Option<&str> {
@@ -117,7 +116,7 @@ impl<'a> Resolver<'a> {
         resource.set_fragment(None);
         let document = self.resolve_url(&resource, instance)?;
         let fragment =
-            url::percent_encoding::percent_decode(url.fragment().unwrap_or_else(|| "").as_bytes())
+            percent_encoding::percent_decode(url.fragment().unwrap_or_else(|| "").as_bytes())
                 .decode_utf8()
                 .unwrap();
         // TODO Prevent infinite reference recursion

@@ -4,9 +4,8 @@ use serde_json::Value;
 use std::error;
 use std::fmt;
 use std::io::prelude::*;
-use url;
 
-use context::Context;
+use crate::context::Context;
 
 #[derive(Default, Debug)]
 pub struct ValidationError {
@@ -54,7 +53,7 @@ impl fmt::Display for ValidationError {
 }
 
 impl error::Error for ValidationError {
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         None
     }
 }
@@ -154,7 +153,7 @@ impl FastFailErrorRecorder {
 }
 
 pub struct ErrorRecorderStream<'a> {
-    stream: &'a mut Write,
+    stream: &'a mut dyn Write,
     has_error: bool,
 }
 
@@ -174,7 +173,7 @@ impl<'a> ErrorRecorder for ErrorRecorderStream<'a> {
 }
 
 impl<'a> ErrorRecorderStream<'a> {
-    pub fn new(stream: &'a mut Write) -> ErrorRecorderStream<'a> {
+    pub fn new(stream: &'a mut dyn Write) -> ErrorRecorderStream<'a> {
         ErrorRecorderStream {
             stream,
             has_error: false,

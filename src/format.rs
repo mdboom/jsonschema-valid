@@ -3,12 +3,10 @@ use std::net::Ipv6Addr;
 use std::str::FromStr;
 
 use chrono::DateTime;
-use iri_string;
-use json_pointer;
 use regex::Regex;
 use url::{Host, Url};
 
-use config::Config;
+use crate::config::Config;
 
 pub type FormatChecker = fn(cfg: &Config, value: &str) -> bool;
 
@@ -39,11 +37,11 @@ pub fn uri_reference(_cfg: &Config, _value: &str) -> bool {
 }
 
 pub fn iri(_cfg: &Config, value: &str) -> bool {
-    iri_string::AbsoluteIri::new(value).is_ok()
+    iri_string::types::IriAbsoluteStr::new(value).is_ok()
 }
 
 pub fn iri_reference(_cfg: &Config, value: &str) -> bool {
-    iri_string::AbsoluteIri::new(value).is_ok()
+    iri_string::types::IriAbsoluteStr::new(value).is_ok()
 }
 
 pub fn datetime(_cfg: &Config, value: &str) -> bool {

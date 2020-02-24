@@ -4,19 +4,9 @@
 //!
 //! Supports JSON Schema drafts 4, 6, and 7.
 
-extern crate regex;
-#[macro_use]
-extern crate serde_json;
-#[macro_use]
-extern crate lazy_static;
-extern crate chrono;
-extern crate iri_string;
-extern crate itertools;
-extern crate json_pointer;
-extern crate url;
+use std::io::prelude::*;
 
 use serde_json::Value;
-use std::io::prelude::*;
 
 mod config;
 mod context;
@@ -28,8 +18,8 @@ mod unique;
 mod util;
 mod validators;
 
-pub use error::ValidationError;
-pub use error::ValidationErrors;
+pub use crate::error::ValidationError;
+pub use crate::error::ValidationErrors;
 
 /// Validates a given JSON instance against a given JSON schema, returning the
 /// errors, if any. draft may provide the schema draft to use. If not provided,
@@ -50,7 +40,7 @@ pub use error::ValidationErrors;
 pub fn validate(
     instance: &Value,
     schema: &Value,
-    draft: Option<&schemas::Draft>,
+    draft: Option<&dyn schemas::Draft>,
     validate_schema: bool,
 ) -> error::ValidationErrors {
     let mut errors = error::ValidationErrors::new();
@@ -79,10 +69,10 @@ pub fn validate(
 /// * `Some(())`: No errors were found.
 /// * `None`: At least one error was found.
 pub fn validate_to_stream(
-    stream: &mut Write,
+    stream: &mut dyn Write,
     instance: &Value,
     schema: &Value,
-    draft: Option<&schemas::Draft>,
+    draft: Option<&dyn schemas::Draft>,
     validate_schema: bool,
 ) -> Option<()> {
     let mut errors = error::ErrorRecorderStream::new(stream);
@@ -111,7 +101,7 @@ pub fn validate_to_stream(
 pub fn is_valid(
     instance: &Value,
     schema: &Value,
-    draft: Option<&schemas::Draft>,
+    draft: Option<&dyn schemas::Draft>,
     validate_schema: bool,
 ) -> bool {
     config::Config::from_schema(schema, draft)
@@ -129,14 +119,14 @@ pub fn is_valid(
 mod tests {
     use super::*;
 
-    use error::ErrorRecorder;
+    use crate::error::ErrorRecorder;
     use std::fs;
     use std::path::PathBuf;
 
     // Test files we know will fail.
     const KNOWN_FAILURES: &'static [&'static str] = &["refRemote.json"];
 
-    fn test_draft(dirname: &str, draft: &schemas::Draft) {
+    fn test_draft(dirname: &str, draft: &dyn schemas::Draft) {
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         path.push("JSON-Schema-Test-Suite/tests");
         path.push(dirname);
