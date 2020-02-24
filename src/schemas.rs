@@ -1,3 +1,6 @@
+//! Implementations of the different drafts of JSON schema.
+//!
+
 use lazy_static::lazy_static;
 use serde_json::Value;
 
@@ -6,13 +9,22 @@ use crate::format::FormatChecker;
 use crate::validators;
 use crate::validators::Validator;
 
+/// The validator can validate JSON data against different versions of JSON Schema.
 pub trait Draft {
+    /// Get a validator function for the given item.
     fn get_validator(&self, key: &str) -> Option<Validator>;
+
+    /// Get the JSON representation of the schema document.
     fn get_schema(&self) -> &'static Value;
+
+    /// Get a format check function.
     fn get_format_checker(&self, format: &str) -> Option<FormatChecker>;
+
+    /// Return the draft's number.
     fn get_draft_number(&self) -> u8;
 }
 
+/// JSONSchema [Draft 7](https://json-schema.org/specification-links.html#draft-7)
 pub struct Draft7;
 
 impl Draft for Draft7 {
@@ -87,6 +99,7 @@ impl Draft for Draft7 {
     }
 }
 
+/// JSONSchema [Draft 6](https://json-schema.org/specification-links.html#draft-6)
 pub struct Draft6;
 
 impl Draft for Draft6 {
@@ -157,6 +170,7 @@ impl Draft for Draft6 {
     }
 }
 
+/// JSONSchema [Draft 4](https://json-schema.org/specification-links.html#draft-4)
 pub struct Draft4;
 
 impl Draft for Draft4 {
@@ -217,6 +231,7 @@ impl Draft for Draft4 {
     }
 }
 
+/// Get the `Draft` from a JSON Schema URL.
 pub fn draft_from_url(url: &str) -> Option<&'static dyn Draft> {
     match url {
         "http://json-schema.org/draft-07/schema" => Some(&Draft7),
@@ -226,6 +241,7 @@ pub fn draft_from_url(url: &str) -> Option<&'static dyn Draft> {
     }
 }
 
+/// Get the `Draft` from a JSON Schema.
 pub fn draft_from_schema(schema: &Value) -> Option<&'static dyn Draft> {
     schema
         .as_object()
