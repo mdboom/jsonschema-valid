@@ -220,12 +220,12 @@ pub fn additionalProperties<'a>(
     if let Object(instance) = instance {
         let extras = parent_schema
             .and_then(|x| x.as_object())
-            .and_then(|x| Some(find_additional_properties(instance, x)));
+            .map(|x| find_additional_properties(instance, x));
 
-        if extras.is_some() {
+        if let Some(mut extras) = extras {
             match schema {
                 Object(_) => {
-                    return Box::new(extras.unwrap().flat_map(move |extra| {
+                    return Box::new(extras.flat_map(move |extra| {
                         Box::new(
                             descend(
                                 cfg,
@@ -240,7 +240,7 @@ pub fn additionalProperties<'a>(
                 }
                 Bool(bool) => {
                     if !bool {
-                        let extra_string = extras.unwrap().join(", ");
+                        let extra_string = extras.join(", ");
                         if !extra_string.is_empty() {
                             return make_error(format!(
                                 "Additional properties are not allowed. Found {}",
@@ -630,7 +630,7 @@ pub fn dependencies<'a>(
             schema_object
                 .iter()
                 .filter(move |(property, _dependency)| {
-                    instance_object.contains_key(&property.to_string())
+                    instance_object.contains_key(property.as_str())
                 })
                 .flat_map(move |(property, dependency)| -> ErrorIterator<'a> {
                     let dep = util::bool_to_object_schema(dependency);
