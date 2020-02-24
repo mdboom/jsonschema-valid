@@ -7,6 +7,13 @@ use std::io::prelude::*;
 
 use crate::context::Context;
 
+/// An error that can occur during validation.
+///
+/// It holds:
+///
+/// * a message describing the validation failure.
+/// * An optional path to the field in the data where the validation failure occured.
+/// * An optional path to the item in the schema that caused the validation failure.
 #[derive(Default, Debug)]
 pub struct ValidationError {
     msg: String,
@@ -66,6 +73,7 @@ impl From<url::ParseError> for ValidationError {
 
 /// Stores information about a single validation error.
 impl ValidationError {
+    /// Create a new validation error with the given error message.
     pub fn new(msg: &str) -> ValidationError {
         ValidationError {
             msg: String::from(msg),
@@ -73,6 +81,7 @@ impl ValidationError {
         }
     }
 
+    /// Create a new validation error with the given error message, providing the schema context.
     pub fn new_with_schema_context(msg: &str, schema_ctx: &Context) -> ValidationError {
         ValidationError {
             msg: String::from(msg),
@@ -81,6 +90,8 @@ impl ValidationError {
         }
     }
 
+    /// Create a new validation error with the given error message,
+    /// providing context for the schema and data.
     pub fn new_with_context(
         msg: &str,
         instance_ctx: &Context,
@@ -117,12 +128,14 @@ impl ErrorRecorder for ValidationErrors {
 }
 
 impl ValidationErrors {
+    /// Create an empty list of validation errors.
     pub fn new() -> ValidationErrors {
         ValidationErrors {
             ..Default::default()
         }
     }
 
+    /// Get the list of validation errors.
     pub fn get_errors(&self) -> &[ValidationError] {
         &self.errors
     }

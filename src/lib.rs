@@ -1,8 +1,28 @@
 //! # jsonschema-valid
 //!
-//! A simple crate to perform json schema validation.
+//! A simple crate to perform [JSON Schema](https://json-schema.org/) validation.
 //!
 //! Supports JSON Schema drafts 4, 6, and 7.
+//!
+//! ## Example:
+//!
+//! The following example validates some JSON data against a draft 6 JSON schema.
+//!
+//! ```rust
+//! # fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
+//! # use serde_json::Value;
+//! # use jsonschema_valid::schemas;
+//! # let schema_json = "{}";
+//! # let your_json_data = "{}";
+//! let schema: Value = serde_json::from_str(schema_json)?;
+//! let data: Value = serde_json::from_str(your_json_data)?;
+//!
+//! assert!(jsonschema_valid::is_valid(&data, &schema, Some(&schemas::Draft6), false));
+//!
+//! # Ok(()) }
+//! ````
+
+#![warn(missing_docs)]
 
 use std::io::prelude::*;
 
@@ -37,6 +57,26 @@ pub use crate::error::ValidationErrors;
 /// # Returns
 ///
 /// * `errors`: A vector of `ValidationError` found during validation.
+///
+/// ## Example:
+///
+/// The following example validates some JSON data against a draft 6 JSON schema.
+///
+/// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
+/// # use serde_json::Value;
+/// # use jsonschema_valid::schemas;
+/// # let schema_json = "{}";
+/// # let your_json_data = "{}";
+/// let schema: Value = serde_json::from_str(schema_json)?;
+/// let data: Value = serde_json::from_str(your_json_data)?;
+///
+/// let validation = jsonschema_valid::validate(&data, &schema, Some(&schemas::Draft6), false);
+/// let errors = validation.get_errors();
+/// assert!(errors.is_empty());
+///
+/// # Ok(()) }
+/// ````
 pub fn validate(
     instance: &Value,
     schema: &Value,
@@ -68,6 +108,33 @@ pub fn validate(
 ///
 /// * `Some(())`: No errors were found.
 /// * `None`: At least one error was found.
+///
+/// ## Example:
+///
+/// The following example validates some JSON data against a draft 6 JSON schema.
+///
+/// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
+/// # use serde_json::Value;
+/// # use jsonschema_valid::schemas;
+/// # use std::io;
+/// # let schema_json = "{}";
+/// # let your_json_data = "{}";
+/// let schema: Value = serde_json::from_str(schema_json)?;
+/// let data: Value = serde_json::from_str(your_json_data)?;
+///
+/// let stdout = io::stdout();
+/// let mut stdout = stdout.lock();
+/// jsonschema_valid::validate_to_stream(
+///     &mut stdout,
+///     &data,
+///     &schema,
+///     Some(&schemas::Draft6),
+///     false
+/// ).unwrap();
+///
+/// # Ok(()) }
+/// ````
 pub fn validate_to_stream(
     stream: &mut dyn Write,
     instance: &Value,
@@ -98,6 +165,24 @@ pub fn validate_to_stream(
 /// # Returns
 ///
 /// * `true`: `instance` is valid against `schema`.
+///
+/// ## Example:
+///
+/// The following example validates some JSON data against a draft 6 JSON schema.
+///
+/// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
+/// # use serde_json::Value;
+/// # use jsonschema_valid::schemas;
+/// # let schema_json = "{}";
+/// # let your_json_data = "{}";
+/// let schema: Value = serde_json::from_str(schema_json)?;
+/// let data: Value = serde_json::from_str(your_json_data)?;
+///
+/// assert!(jsonschema_valid::is_valid(&data, &schema, Some(&schemas::Draft6), false));
+///
+/// # Ok(()) }
+/// ````
 pub fn is_valid(
     instance: &Value,
     schema: &Value,
