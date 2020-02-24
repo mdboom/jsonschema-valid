@@ -176,12 +176,10 @@ fn find_additional_properties<'a>(
     let pattern_regexes = schema
         .get("patternProperties")
         .and_then(Value::as_object)
-        .and_then(|x| {
-            Some(
-                x.keys()
-                    .filter_map(|k| regex::Regex::new(k).ok())
-                    .collect::<Vec<regex::Regex>>(),
-            )
+        .map(|x| {
+            x.keys()
+                .filter_map(|k| regex::Regex::new(k).ok())
+                .collect::<Vec<regex::Regex>>()
         });
     Box::new(
         instance
@@ -954,7 +952,7 @@ pub fn required(
         let missing_properties: Vec<&str> = schema
             .iter()
             .filter_map(Value::as_str)
-            .filter(|x| !instance.contains_key(&x.to_string()))
+            .filter(|&x| !instance.contains_key(&x.to_string()))
             .collect();
 
         if !missing_properties.is_empty() {
@@ -962,8 +960,7 @@ pub fn required(
                 &format!(
                     "required properties {} are missing",
                     missing_properties.join(", ")
-                )
-                .to_string(),
+                ),
                 instance_ctx,
                 schema_ctx,
             ))?;
