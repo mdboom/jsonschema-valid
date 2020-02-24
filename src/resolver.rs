@@ -116,7 +116,7 @@ impl<'a> Resolver<'a> {
         resource.set_fragment(None);
         let document = self.resolve_url(&resource, instance)?;
         let fragment =
-            url::percent_encoding::percent_decode(url.fragment().unwrap_or_else(|| "").as_bytes())
+            percent_encoding::percent_decode(url.fragment().unwrap_or_else(|| "").as_bytes())
                 .decode_utf8()
                 .unwrap();
         // TODO Prevent infinite reference recursion

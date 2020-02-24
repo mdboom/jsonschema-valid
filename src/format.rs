@@ -37,11 +37,11 @@ pub fn uri_reference(_cfg: &Config, _value: &str) -> bool {
 }
 
 pub fn iri(_cfg: &Config, value: &str) -> bool {
-    iri_string::AbsoluteIri::new(value).is_ok()
+    iri_string::types::IriAbsoluteStr::new(value).is_ok()
 }
 
 pub fn iri_reference(_cfg: &Config, value: &str) -> bool {
-    iri_string::AbsoluteIri::new(value).is_ok()
+    iri_string::types::IriAbsoluteStr::new(value).is_ok()
 }
 
 pub fn datetime(_cfg: &Config, value: &str) -> bool {
