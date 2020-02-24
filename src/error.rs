@@ -77,6 +77,8 @@ impl ValidationError {
     }
 }
 
+/// An `Iterator` over `ValidationError` objects. The main method by which
+/// validation errors are returned to the user.
 pub type ErrorIterator<'a> = Box<dyn Iterator<Item = ValidationError> + 'a>;
 
 pub fn make_error<'a, O: Into<String>>(message: O) -> ErrorIterator<'a> {

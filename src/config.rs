@@ -6,6 +6,7 @@ use crate::resolver::Resolver;
 use crate::schemas;
 use crate::validators::Validator;
 
+/// A structure to hold configuration for a single validation run.
 pub struct Config<'a> {
     schema: &'a Value,
     resolver: Resolver<'a>,
@@ -13,30 +14,41 @@ pub struct Config<'a> {
 }
 
 impl<'a> Config<'a> {
+    /// Get the validator object for the draft in use.
     pub fn get_validator(&self, key: &str) -> Option<Validator> {
         self.draft.get_validator(key)
     }
 
+    /// Get the string format checker for the draft in use.
     pub fn get_format_checker(&self, key: &str) -> Option<FormatChecker> {
         self.draft.get_format_checker(key)
     }
 
+    /// Get the draft number in use.
     pub fn get_draft_number(&self) -> u8 {
         self.draft.get_draft_number()
     }
 
+    /// Get the metaschema associated with the draft in use.
     pub fn get_metaschema(&self) -> &Value {
         self.draft.get_schema()
     }
 
+    /// Get the resolver for the parsing context.
     pub fn get_resolver(&self) -> &Resolver<'a> {
         &self.resolver
     }
 
+    /// Get the schema currently being checked against.
     pub fn get_schema(&self) -> &Value {
         &self.schema
     }
 
+    /// Create a new Config object from a given schema.
+    ///
+    /// Will attempt to automatically determine which draft to use based on the
+    /// `$schema` key in the given schema, otherwise will fall back to the draft
+    /// specified in `draft`.
     pub fn from_schema(
         schema: &'a Value,
         draft: Option<&'a dyn schemas::Draft>,
