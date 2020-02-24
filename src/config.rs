@@ -1,11 +1,9 @@
 use serde_json::Value;
 
-use crate::context::Context;
-use crate::error::{ErrorRecorder, ValidationError};
+use crate::error::ValidationError;
 use crate::format::FormatChecker;
 use crate::resolver::Resolver;
 use crate::schemas;
-use crate::validators;
 use crate::validators::Validator;
 
 pub struct Config<'a> {
@@ -29,40 +27,6 @@ impl<'a> Config<'a> {
 
     pub fn get_metaschema(&self) -> &Value {
         self.draft.get_schema()
-    }
-
-    pub fn validate(
-        &self,
-        instance: &Value,
-        schema: &Value,
-        errors: &mut dyn ErrorRecorder,
-        validate_schema: bool,
-    ) -> Option<()> {
-        if validate_schema {
-            let metaschema = self.get_metaschema();
-            validators::descend(
-                self,
-                schema,
-                metaschema,
-                &Context::new(),
-                &Context::new(),
-                &Context::new_from(metaschema),
-                errors,
-            );
-            if errors.has_errors() {
-                return None;
-            }
-        }
-
-        validators::descend(
-            self,
-            instance,
-            schema,
-            &Context::new(),
-            &Context::new(),
-            &Context::new_from(schema),
-            errors,
-        )
     }
 
     pub fn get_resolver(&self) -> &Resolver<'a> {

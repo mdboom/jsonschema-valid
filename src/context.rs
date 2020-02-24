@@ -2,6 +2,7 @@
 
 use serde_json::Value;
 
+#[derive(Copy, Clone)]
 pub struct Context<'a> {
     pub x: &'a Value,
     pub parent: Option<&'a Context<'a>>,

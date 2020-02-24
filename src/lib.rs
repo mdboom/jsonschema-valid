@@ -16,15 +16,16 @@
 //! # let your_json_data = "{}";
 //! let schema: Value = serde_json::from_str(schema_json)?;
 //! let data: Value = serde_json::from_str(your_json_data)?;
+//! let cfg = jsonschema_valid::Config::from_schema(&schema, Some(&schemas::Draft6)).unwrap();
 //!
-//! assert!(jsonschema_valid::is_valid(&data, &schema, Some(&schemas::Draft6), false));
+//! assert!(jsonschema_valid::is_valid(&cfg, &data, &schema, false));
 //!
 //! # Ok(()) }
 //! ````
 
 #![warn(missing_docs)]
 
-use std::io::prelude::*;
+use std::iter::empty;
 
 use serde_json::Value;
 
@@ -38,8 +39,9 @@ mod unique;
 mod util;
 mod validators;
 
-pub use crate::error::ValidationError;
-pub use crate::error::ValidationErrors;
+pub use crate::config::Config;
+use crate::context::Context;
+pub use crate::error::{ErrorIterator, ValidationError};
 
 /// Validates a given JSON instance against a given JSON schema, returning the
 /// errors, if any. draft may provide the schema draft to use. If not provided,
@@ -47,16 +49,15 @@ pub use crate::error::ValidationErrors;
 ///
 /// # Arguments
 ///
+/// * `cfg`: The configuration object to use
 /// * `instance`: The JSON document to validate
 /// * `schema`: The JSON schema to validate against
-/// * `draft`: The draft of the JSON schema specification to use. If `None`, the
-///   draft will be automatically determined from the `schema`.
 /// * `validate_schema`: When `true`, validate the schema against the metaschema
 ///   first.
 ///
 /// # Returns
 ///
-/// * `errors`: A vector of `ValidationError` found during validation.
+/// * `errors`: An `Iterator` of `ValidationError` found during validation.
 ///
 /// ## Example:
 ///
@@ -65,87 +66,44 @@ pub use crate::error::ValidationErrors;
 /// ```rust
 /// # fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
 /// # use serde_json::Value;
-/// # use jsonschema_valid::schemas;
+/// # use jsonschema_valid::{schemas, Config};
 /// # let schema_json = "{}";
 /// # let your_json_data = "{}";
 /// let schema: Value = serde_json::from_str(schema_json)?;
 /// let data: Value = serde_json::from_str(your_json_data)?;
+/// let cfg = jsonschema_valid::Config::from_schema(&schema, Some(&schemas::Draft6)).unwrap();
 ///
-/// let validation = jsonschema_valid::validate(&data, &schema, Some(&schemas::Draft6), false);
-/// let errors = validation.get_errors();
-/// assert!(errors.is_empty());
-///
-/// # Ok(()) }
-/// ````
-pub fn validate(
-    instance: &Value,
-    schema: &Value,
-    draft: Option<&dyn schemas::Draft>,
-    validate_schema: bool,
-) -> error::ValidationErrors {
-    let mut errors = error::ValidationErrors::new();
-    config::Config::from_schema(schema, draft)
-        .unwrap()
-        .validate(instance, schema, &mut errors, validate_schema);
-    errors
-}
-
-/// Validates a given JSON instance against a given JSON schema, writing the
-/// errors to the given stream. draft may provide the schema draft to use. If
-/// not provided, it will be determined automatically from the schema.
-///
-/// # Arguments
-///
-/// * `stream`: An object to write errors to.
-/// * `instance`: The JSON document to validate
-/// * `schema`: The JSON schema to validate against
-/// * `draft`: The draft of the JSON schema specification to use. If `None`, the
-///   draft will be automatically determined from the `schema`.
-/// * `validate_schema`: When `true`, validate the schema against the metaschema
-///   first.
-///
-/// # Returns
-///
-/// * `Some(())`: No errors were found.
-/// * `None`: At least one error was found.
-///
-/// ## Example:
-///
-/// The following example validates some JSON data against a draft 6 JSON schema.
-///
-/// ```rust
-/// # fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
-/// # use serde_json::Value;
-/// # use jsonschema_valid::schemas;
-/// # use std::io;
-/// # let schema_json = "{}";
-/// # let your_json_data = "{}";
-/// let schema: Value = serde_json::from_str(schema_json)?;
-/// let data: Value = serde_json::from_str(your_json_data)?;
-///
-/// let stdout = io::stdout();
-/// let mut stdout = stdout.lock();
-/// jsonschema_valid::validate_to_stream(
-///     &mut stdout,
-///     &data,
-///     &schema,
-///     Some(&schemas::Draft6),
-///     false
-/// ).unwrap();
+/// let mut validation = jsonschema_valid::validate(&cfg, &data, &schema, false);
+/// assert!(!validation.next().is_some());
 ///
 /// # Ok(()) }
 /// ````
-pub fn validate_to_stream(
-    stream: &mut dyn Write,
-    instance: &Value,
-    schema: &Value,
-    draft: Option<&dyn schemas::Draft>,
+pub fn validate<'a>(
+    cfg: &'a config::Config<'a>,
+    instance: &'a Value,
+    schema: &'a Value,
     validate_schema: bool,
-) -> Option<()> {
-    let mut errors = error::ErrorRecorderStream::new(stream);
-    config::Config::from_schema(schema, draft)
-        .unwrap()
-        .validate(instance, schema, &mut errors, validate_schema)
+) -> ErrorIterator<'a> {
+    Box::new(
+        if validate_schema {
+            validators::descend(
+                cfg,
+                schema,
+                cfg.get_metaschema(),
+                None,
+                Context::new_from(cfg.get_metaschema()),
+            )
+        } else {
+            Box::new(empty())
+        }
+        .chain(validators::descend(
+            cfg,
+            instance,
+            schema,
+            None,
+            Context::new_from(schema),
+        )),
+    )
 }
 
 /// Validates a given JSON instance against a given JSON schema, returning true
@@ -155,10 +113,9 @@ pub fn validate_to_stream(
 ///
 /// # Arguments
 ///
+/// * `cfg`: The configuration object to use
 /// * `instance`: The JSON document to validate
 /// * `schema`: The JSON schema to validate against
-/// * `draft`: The draft of the JSON schema specification to use. If `None`, the
-///   draft will be automatically determined from the `schema`.
 /// * `validate_schema`: When `true`, validate the schema against the metaschema
 ///   first.
 ///
@@ -178,33 +135,27 @@ pub fn validate_to_stream(
 /// # let your_json_data = "{}";
 /// let schema: Value = serde_json::from_str(schema_json)?;
 /// let data: Value = serde_json::from_str(your_json_data)?;
+/// let cfg = jsonschema_valid::Config::from_schema(&schema, Some(&schemas::Draft6)).unwrap();
 ///
-/// assert!(jsonschema_valid::is_valid(&data, &schema, Some(&schemas::Draft6), false));
+/// assert!(jsonschema_valid::is_valid(&cfg, &data, &schema, false));
 ///
 /// # Ok(()) }
 /// ````
-pub fn is_valid(
+pub fn is_valid<'a>(
+    cfg: &'a config::Config<'a>,
     instance: &Value,
     schema: &Value,
-    draft: Option<&dyn schemas::Draft>,
     validate_schema: bool,
 ) -> bool {
-    config::Config::from_schema(schema, draft)
-        .unwrap()
-        .validate(
-            instance,
-            schema,
-            &mut error::FastFailErrorRecorder::new(),
-            validate_schema,
-        )
-        .is_some()
+    validate(cfg, instance, schema, validate_schema)
+        .next()
+        .is_none()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    use crate::error::ErrorRecorder;
     use std::fs;
     use std::path::PathBuf;
 
@@ -244,9 +195,13 @@ mod tests {
                         let data = test.get("data").unwrap();
                         let valid = test.get("valid").unwrap();
                         if let Value::Bool(expected_valid) = valid {
-                            let result = validate(&data, &schema, Some(draft), true);
-                            assert_eq!(!result.has_errors(), *expected_valid);
-                            let result2 = is_valid(&data, &schema, Some(draft), true);
+                            let cfg = config::Config::from_schema(&schema, Some(draft)).unwrap();
+                            let result = validate(&cfg, &data, &schema, true);
+                            assert_eq!(
+                                result.collect::<Vec<ValidationError>>().is_empty(),
+                                *expected_valid
+                            );
+                            let result2 = is_valid(&cfg, &data, &schema, true);
                             assert_eq!(result2, *expected_valid);
                         }
                     }
