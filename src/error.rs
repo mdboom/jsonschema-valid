@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 use std::fmt;
 use std::iter::{empty, once};
 use url;
@@ -22,7 +20,7 @@ fn path_to_string(path: &[String]) -> String {
     if path.is_empty() {
         "/".to_string()
     } else {
-        "/".to_owned() + &path.iter().join("/")
+        "/".to_owned() + &path.join("/")
     }
 }
 
