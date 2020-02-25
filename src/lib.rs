@@ -17,15 +17,15 @@
 //! let schema: Value = serde_json::from_str(schema_json)?;
 //! let data: Value = serde_json::from_str(your_json_data)?;
 //! let cfg = jsonschema_valid::Config::from_schema(&schema, Some(&schemas::Draft6)).unwrap();
-//!
-//! assert!(jsonschema_valid::is_valid(&cfg, &data, &schema, false));
+//! // Validate the schema itself
+//! assert!(cfg.validate_schema().is_ok());
+//! // Validate a JSON instance against the schema
+//! assert!(cfg.validate(&data).is_ok());
 //!
 //! # Ok(()) }
 //! ````
 
 #![warn(missing_docs)]
-
-use std::iter::empty;
 
 use serde_json::Value;
 
@@ -51,15 +51,12 @@ pub use crate::error::{ErrorIterator, ValidationError};
 ///
 /// * `cfg`: The configuration object to use
 /// * `instance`: The JSON document to validate
-/// * `schema`: The JSON schema to validate against
-/// * `validate_schema`: When `true`, validate the schema against the metaschema
-///   first.
 ///
 /// # Returns
 ///
-/// * `errors`: A `Result` indicating whether there were any errors. If
-///   `Ok(())`, the `instance` is valid against `schema`. If `Err(e)`, `e` is an
-///   iterator over all of the validation errors.
+/// * `errors`: A `Result` indicating whether there were any validation errors.
+///   If `Ok(())`, the `instance` is valid against `schema`. If `Err(e)`, `e` is
+///   an iterator over all of the validation errors.
 ///
 /// ## Example:
 ///
@@ -75,7 +72,7 @@ pub use crate::error::{ErrorIterator, ValidationError};
 /// let data: Value = serde_json::from_str(your_json_data)?;
 /// let cfg = jsonschema_valid::Config::from_schema(&schema, Some(&schemas::Draft6)).unwrap();
 ///
-/// let mut validation = jsonschema_valid::validate(&cfg, &data, &schema, false);
+/// let mut validation = jsonschema_valid::validate(&cfg, &data);
 /// if let Err(errors) = validation {
 ///     for error in errors {
 ///         println!("Error: {:?}", error);
@@ -87,28 +84,15 @@ pub use crate::error::{ErrorIterator, ValidationError};
 pub fn validate<'a>(
     cfg: &'a config::Config<'a>,
     instance: &'a Value,
-    schema: &'a Value,
-    validate_schema: bool,
 ) -> Result<(), ErrorIterator<'a>> {
     let mut errors = Box::new(
-        if validate_schema {
-            validators::descend(
-                cfg,
-                schema,
-                cfg.get_metaschema(),
-                None,
-                Context::new_from(cfg.get_metaschema()),
-            )
-        } else {
-            Box::new(empty())
-        }
-        .chain(validators::descend(
+        validators::descend(
             cfg,
             instance,
-            schema,
+            cfg.get_schema(),
             None,
-            Context::new_from(schema),
-        ))
+            Context::new_from(cfg.get_schema()),
+        )
         .peekable(),
     );
 
@@ -117,48 +101,6 @@ pub fn validate<'a>(
     } else {
         Err(errors)
     }
-}
-
-/// Validates a given JSON instance against a given JSON schema, returning true
-/// if valid.
-///
-/// # Arguments
-///
-/// * `cfg`: The configuration object to use
-/// * `instance`: The JSON document to validate
-/// * `schema`: The JSON schema to validate against
-/// * `validate_schema`: When `true`, validate the schema against the metaschema
-///   first.
-///
-/// # Returns
-///
-/// * `true`: `instance` is valid against `schema`.
-///
-/// ## Example:
-///
-/// The following example validates some JSON data against a draft 6 JSON schema.
-///
-/// ```rust
-/// # fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
-/// # use serde_json::Value;
-/// # use jsonschema_valid::schemas;
-/// # let schema_json = "{}";
-/// # let your_json_data = "{}";
-/// let schema: Value = serde_json::from_str(schema_json)?;
-/// let data: Value = serde_json::from_str(your_json_data)?;
-/// let cfg = jsonschema_valid::Config::from_schema(&schema, Some(&schemas::Draft6)).unwrap();
-///
-/// assert!(jsonschema_valid::is_valid(&cfg, &data, &schema, false));
-///
-/// # Ok(()) }
-/// ````
-pub fn is_valid<'a>(
-    cfg: &'a config::Config<'a>,
-    instance: &Value,
-    schema: &Value,
-    validate_schema: bool,
-) -> bool {
-    validate(cfg, instance, schema, validate_schema).is_ok()
 }
 
 #[cfg(test)]
@@ -205,10 +147,13 @@ mod tests {
                         let valid = test.get("valid").unwrap();
                         if let Value::Bool(expected_valid) = valid {
                             let cfg = config::Config::from_schema(&schema, Some(draft)).unwrap();
-                            let result = validate(&cfg, &data, &schema, true);
+                            assert!(cfg.validate_schema().is_ok());
+                            let result = validate(&cfg, &data);
                             assert_eq!(result.is_ok(), *expected_valid);
-                            let result2 = is_valid(&cfg, &data, &schema, true);
-                            assert_eq!(result2, *expected_valid);
+                            let cfg2 = config::Config::from_schema(&schema, Some(draft)).unwrap();
+                            let result2 = cfg2.validate(&data);
+                            assert!(cfg2.validate_schema().is_ok());
+                            assert_eq!(result2.is_ok(), *expected_valid);
                         }
                     }
                 }

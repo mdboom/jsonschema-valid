@@ -1,9 +1,11 @@
 use serde_json::Value;
 
-use crate::error::ValidationError;
+use crate::context::Context;
+use crate::error::{ErrorIterator, ValidationError};
 use crate::format::FormatChecker;
 use crate::resolver::Resolver;
 use crate::schemas;
+use crate::validators;
 use crate::validators::Validator;
 
 /// A structure to hold configuration for a single validation run.
@@ -61,5 +63,30 @@ impl<'a> Config<'a> {
                 schemas::draft_from_schema(schema).unwrap_or_else(|| &schemas::Draft7)
             }),
         })
+    }
+
+    /// Validate the given JSON instance against the schema.
+    pub fn validate(&'a self, instance: &'a Value) -> Result<(), ErrorIterator<'a>> {
+        crate::validate(self, instance)
+    }
+
+    /// Validate the schema in this Config object against the metaschema.
+    pub fn validate_schema(&'a self) -> Result<(), ErrorIterator<'a>> {
+        let mut errors = Box::new(
+            validators::descend(
+                self,
+                self.get_schema(),
+                self.get_metaschema(),
+                None,
+                Context::new_from(self.get_metaschema()),
+            )
+            .peekable(),
+        );
+
+        if errors.peek().is_none() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
     }
 }
