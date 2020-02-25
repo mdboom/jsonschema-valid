@@ -57,7 +57,9 @@ pub use crate::error::{ErrorIterator, ValidationError};
 ///
 /// # Returns
 ///
-/// * `errors`: An `Iterator` of `ValidationError` found during validation.
+/// * `errors`: A `Result` indicating whether there were any errors. If
+///   `Ok(())`, the `instance` is valid against `schema`. If `Err(e)`, `e` is an
+///   iterator over all of the validation errors.
 ///
 /// ## Example:
 ///
@@ -67,15 +69,17 @@ pub use crate::error::{ErrorIterator, ValidationError};
 /// # fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
 /// # use serde_json::Value;
 /// # use jsonschema_valid::{schemas, Config};
-/// # let schema_json = "{}";
-/// # let your_json_data = "{}";
+/// # let schema_json = "{\"type\": \"integer\"}";
+/// # let your_json_data = "\"string\"";
 /// let schema: Value = serde_json::from_str(schema_json)?;
 /// let data: Value = serde_json::from_str(your_json_data)?;
 /// let cfg = jsonschema_valid::Config::from_schema(&schema, Some(&schemas::Draft6)).unwrap();
 ///
 /// let mut validation = jsonschema_valid::validate(&cfg, &data, &schema, false);
-/// for error in validation {
-///    println!("Error: {:?}", error);
+/// if let Err(errors) = validation {
+///     for error in errors {
+///         println!("Error: {:?}", error);
+///     }
 /// }
 ///
 /// # Ok(()) }
@@ -85,8 +89,8 @@ pub fn validate<'a>(
     instance: &'a Value,
     schema: &'a Value,
     validate_schema: bool,
-) -> ErrorIterator<'a> {
-    Box::new(
+) -> Result<(), ErrorIterator<'a>> {
+    let mut errors = Box::new(
         if validate_schema {
             validators::descend(
                 cfg,
@@ -104,14 +108,19 @@ pub fn validate<'a>(
             schema,
             None,
             Context::new_from(schema),
-        )),
-    )
+        ))
+        .peekable(),
+    );
+
+    if errors.peek().is_none() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
 }
 
 /// Validates a given JSON instance against a given JSON schema, returning true
-/// if valid. This function is more efficient than [validate](fn.validate.html)
-/// or [validate_to_stream](fn.validate_to_stream.html), because it stops at the
-/// first error.
+/// if valid.
 ///
 /// # Arguments
 ///
@@ -149,9 +158,7 @@ pub fn is_valid<'a>(
     schema: &Value,
     validate_schema: bool,
 ) -> bool {
-    validate(cfg, instance, schema, validate_schema)
-        .next()
-        .is_none()
+    validate(cfg, instance, schema, validate_schema).is_ok()
 }
 
 #[cfg(test)]
@@ -199,10 +206,7 @@ mod tests {
                         if let Value::Bool(expected_valid) = valid {
                             let cfg = config::Config::from_schema(&schema, Some(draft)).unwrap();
                             let result = validate(&cfg, &data, &schema, true);
-                            assert_eq!(
-                                result.collect::<Vec<ValidationError>>().is_empty(),
-                                *expected_valid
-                            );
+                            assert_eq!(result.is_ok(), *expected_valid);
                             let result2 = is_valid(&cfg, &data, &schema, true);
                             assert_eq!(result2, *expected_valid);
                         }
