@@ -46,9 +46,10 @@ impl<'a> Config<'a> {
 
     /// Create a new Config object from a given schema.
     ///
-    /// Will attempt to automatically determine which draft to use based on the
-    /// `$schema` key in the given schema, otherwise will fall back to the draft
-    /// specified in `draft`.
+    /// Will use the Draft of JSON schema specified by `draft`. If `draft` is
+    /// `None`, it will be automatically determined from the `$schema` entry in
+    /// the given `shema`. If no `$schema` entry is present Draft 7 will be used
+    /// by default.
     pub fn from_schema(
         schema: &'a Value,
         draft: Option<&'a dyn schemas::Draft>,
