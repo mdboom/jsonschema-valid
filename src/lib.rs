@@ -85,21 +85,19 @@ pub fn validate<'a>(
     cfg: &'a config::Config<'a>,
     instance: &'a Value,
 ) -> Result<(), ErrorIterator<'a>> {
-    let mut errors = Box::new(
-        validators::descend(
-            cfg,
-            instance,
-            cfg.get_schema(),
-            None,
-            Context::new_from(cfg.get_schema()),
-        )
-        .peekable(),
-    );
+    let mut errors = validators::descend(
+        cfg,
+        instance,
+        cfg.get_schema(),
+        None,
+        Context::new_from(cfg.get_schema()),
+    )
+    .peekable();
 
     if errors.peek().is_none() {
         Ok(())
     } else {
-        Err(errors)
+        Err(Box::new(errors))
     }
 }
 
