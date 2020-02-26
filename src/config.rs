@@ -72,21 +72,19 @@ impl<'a> Config<'a> {
 
     /// Validate the schema in this Config object against the metaschema.
     pub fn validate_schema(&'a self) -> Result<(), ErrorIterator<'a>> {
-        let mut errors = Box::new(
-            validators::descend(
-                self,
-                self.get_schema(),
-                self.get_metaschema(),
-                None,
-                Context::new_from(self.get_metaschema()),
-            )
-            .peekable(),
-        );
+        let mut errors = validators::descend(
+            self,
+            self.get_schema(),
+            self.get_metaschema(),
+            None,
+            Context::new_from(self.get_metaschema()),
+        )
+        .peekable();
 
         if errors.peek().is_none() {
             Ok(())
         } else {
-            Err(errors)
+            Err(Box::new(errors))
         }
     }
 }
