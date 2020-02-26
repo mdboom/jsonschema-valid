@@ -1,11 +1,6 @@
-use itertools::Itertools;
-use serde_json::Value;
-
-use std::error;
 use std::fmt;
-use std::io::prelude::*;
-
-use crate::context::Context;
+use std::iter::{empty, once};
+use url;
 
 /// An error that can occur during validation.
 ///
@@ -14,54 +9,30 @@ use crate::context::Context;
 /// * a message describing the validation failure.
 /// * An optional path to the field in the data where the validation failure occured.
 /// * An optional path to the item in the schema that caused the validation failure.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct ValidationError {
     msg: String,
-    instance_path: Option<Vec<Value>>,
-    schema_path: Option<Vec<Value>>,
+    instance_path: Vec<String>,
+    schema_path: Vec<String>,
 }
 
-fn simple_to_string(value: &Value) -> String {
-    match value {
-        Value::String(v) => v.as_str().to_string(),
-        _ => value.to_string(),
-    }
-}
-
-fn path_to_string(path: &[Value]) -> String {
+fn path_to_string(path: &[String]) -> String {
     if path.is_empty() {
-        ".".to_string()
+        "/".to_string()
     } else {
-        path.iter().map(|x| simple_to_string(x)).join("/")
+        "/".to_owned() + &path.join("/")
     }
 }
 
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let (Some(instance_path), Some(schema_path)) = (&self.instance_path, &self.schema_path) {
-            write!(
-                f,
-                "At {} with schema at {}: {}",
-                path_to_string(&instance_path),
-                path_to_string(&schema_path),
-                self.msg
-            )
-        } else if let Some(schema_path) = &self.schema_path {
-            write!(
-                f,
-                "At schema {}: {}",
-                path_to_string(&schema_path),
-                self.msg
-            )
-        } else {
-            write!(f, "{}", self.msg)
-        }
-    }
-}
-
-impl error::Error for ValidationError {
-    fn cause(&self) -> Option<&dyn error::Error> {
-        None
+        write!(
+            f,
+            "At {} with schema at {}: {}",
+            path_to_string(&self.instance_path),
+            path_to_string(&self.schema_path),
+            self.msg
+        )
     }
 }
 
@@ -81,115 +52,37 @@ impl ValidationError {
         }
     }
 
-    /// Create a new validation error with the given error message, providing the schema context.
-    pub fn new_with_schema_context(msg: &str, schema_ctx: &Context) -> ValidationError {
-        ValidationError {
-            msg: String::from(msg),
-            instance_path: None,
-            schema_path: Some(schema_ctx.flatten()),
-        }
-    }
-
     /// Create a new validation error with the given error message,
     /// providing context for the schema and data.
-    pub fn new_with_context(
-        msg: &str,
-        instance_ctx: &Context,
-        schema_ctx: &Context,
-    ) -> ValidationError {
-        ValidationError {
-            msg: String::from(msg),
-            instance_path: Some(instance_ctx.flatten()),
-            schema_path: Some(schema_ctx.flatten()),
-        }
+    pub fn add_ctx(mut self, instance_context: String, schema_context: String) -> Self {
+        self.instance_path.push(instance_context);
+        self.schema_path.push(schema_context);
+        self
+    }
+
+    /// Create a new validation error with the given error message, providing
+    /// the instance context.
+    pub fn instance_ctx(mut self, instance_context: String) -> Self {
+        self.instance_path.push(instance_context);
+        self
+    }
+
+    /// Create a new validation error with the given error message, providing
+    /// the schema context.
+    pub fn schema_ctx(mut self, schema_context: String) -> Self {
+        self.schema_path.push(schema_context);
+        self
     }
 }
 
-pub trait ErrorRecorder {
-    fn record_error(&mut self, error: ValidationError) -> Option<()>;
-    fn has_errors(&self) -> bool;
+/// An `Iterator` over `ValidationError` objects. The main method by which
+/// validation errors are returned to the user.
+pub type ErrorIterator<'a> = Box<dyn Iterator<Item = ValidationError> + 'a>;
+
+pub fn make_error<'a, O: Into<String>>(message: O) -> ErrorIterator<'a> {
+    Box::new(once(ValidationError::new(&message.into())))
 }
 
-/// Stores the ValidationErrors from a validation run.
-#[derive(Default)]
-pub struct ValidationErrors {
-    errors: Vec<ValidationError>,
-}
-
-impl ErrorRecorder for ValidationErrors {
-    fn record_error(&mut self, error: ValidationError) -> Option<()> {
-        self.errors.push(error);
-        Some(())
-    }
-
-    fn has_errors(&self) -> bool {
-        !self.errors.is_empty()
-    }
-}
-
-impl ValidationErrors {
-    /// Create an empty list of validation errors.
-    pub fn new() -> ValidationErrors {
-        ValidationErrors {
-            ..Default::default()
-        }
-    }
-
-    /// Get the list of validation errors.
-    pub fn get_errors(&self) -> &[ValidationError] {
-        &self.errors
-    }
-}
-
-#[derive(Default)]
-pub struct FastFailErrorRecorder {
-    error: Option<ValidationError>,
-}
-
-impl ErrorRecorder for FastFailErrorRecorder {
-    fn record_error(&mut self, err: ValidationError) -> Option<()> {
-        self.error = Some(err);
-        None
-    }
-
-    fn has_errors(&self) -> bool {
-        self.error.is_some()
-    }
-}
-
-impl FastFailErrorRecorder {
-    pub fn new() -> FastFailErrorRecorder {
-        FastFailErrorRecorder {
-            ..Default::default()
-        }
-    }
-}
-
-pub struct ErrorRecorderStream<'a> {
-    stream: &'a mut dyn Write,
-    has_error: bool,
-}
-
-impl<'a> ErrorRecorder for ErrorRecorderStream<'a> {
-    fn record_error(&mut self, err: ValidationError) -> Option<()> {
-        self.has_error = true;
-        if writeln!(self.stream, "{}", err.to_string()).is_err() {
-            None
-        } else {
-            Some(())
-        }
-    }
-
-    fn has_errors(&self) -> bool {
-        self.has_error
-    }
-}
-
-impl<'a> ErrorRecorderStream<'a> {
-    pub fn new(stream: &'a mut dyn Write) -> ErrorRecorderStream<'a> {
-        ErrorRecorderStream {
-            stream,
-            has_error: false,
-        }
-    }
+pub fn no_error<'a>() -> ErrorIterator<'a> {
+    Box::new(empty())
 }
