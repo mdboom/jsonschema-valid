@@ -845,7 +845,7 @@ pub fn required<'a>(
             return make_error(
                 format!(
                     "Required properties {} are missing",
-                    util::format_list(&mut missing_properties.iter().map(|x| *x))
+                    util::format_list(&mut missing_properties.iter().copied())
                 ),
                 Some(instance),
                 Some(schema),

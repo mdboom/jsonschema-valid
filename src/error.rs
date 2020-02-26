@@ -36,28 +36,30 @@ fn path_to_string(path: &[String]) -> String {
 
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}\n", textwrap::fill(&self.msg, 78))?;
+        writeln!(f, "{}", textwrap::fill(&self.msg, 78))?;
 
         if let Some(instance) = &self.instance {
-            write!(
+            writeln!(
                 f,
-                "At instance path {}:\n",
+                "At instance path {}:",
                 path_to_string(&self.instance_path)
             )?;
 
-            let json_content = serde_json::to_string_pretty(&instance).unwrap_or("".to_string());
-            write!(f, "{}\n", textwrap::indent(&json_content, "  "))?;
+            let json_content =
+                serde_json::to_string_pretty(&instance).unwrap_or_else(|_| "".to_string());
+            writeln!(f, "{}", textwrap::indent(&json_content, "  "))?;
         }
 
         if let Some(schema) = &self.schema {
-            write!(f, "At schema path {}:\n", path_to_string(&self.schema_path))?;
+            writeln!(f, "At schema path {}:", path_to_string(&self.schema_path))?;
 
-            let json_content = serde_json::to_string_pretty(&schema).unwrap_or("".to_string());
-            write!(f, "{}\n", textwrap::indent(&json_content, "  "))?;
+            let json_content =
+                serde_json::to_string_pretty(&schema).unwrap_or_else(|_| "".to_string());
+            writeln!(f, "{}", textwrap::indent(&json_content, "  "))?;
 
             if let Some(description) = schema.get("description").and_then(|x| x.as_str()) {
-                write!(f, "Documentation for this node:\n")?;
-                write!(f, "{}\n", textwrap::indent(&description, "  "))?;
+                writeln!(f, "Documentation for this node:")?;
+                writeln!(f, "{}", textwrap::indent(&description, "  "))?;
             };
         }
 
