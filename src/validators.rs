@@ -345,7 +345,7 @@ pub fn const_<'a>(
     _parent_schema: Option<&'a Value>,
     _ref_context: Context<'a>,
 ) -> ErrorIterator<'a> {
-    if instance != schema {
+    if !util::json_equal(instance, schema) {
         make_error("const doesn't match.", Some(instance), Some(schema))
     } else {
         no_error()
@@ -722,7 +722,7 @@ pub fn enum_<'a>(
     _ref_context: Context<'a>,
 ) -> ErrorIterator<'a> {
     if let Array(enums) = schema {
-        if !enums.iter().any(|val| val == instance) {
+        if !enums.iter().any(|val| util::json_equal(val, instance)) {
             return make_error("Value is not in enum.", Some(instance), Some(schema));
         }
     }
