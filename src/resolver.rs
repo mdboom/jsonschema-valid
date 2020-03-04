@@ -7,7 +7,7 @@ use crate::error::ValidationError;
 use crate::schemas;
 // TODO: Make the choice of resolver dynamic
 
-const DOCUMENT_PROTOCOL: &'static str = "document:///";
+const DOCUMENT_PROTOCOL: &str = "document:///";
 
 fn id_of(schema: &Value) -> Option<&str> {
     if let Value::Object(object) = schema {
