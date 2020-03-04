@@ -50,7 +50,7 @@ impl<'a> Config<'a> {
     ///
     /// Will use the Draft of JSON schema specified by `draft`. If `draft` is
     /// `None`, it will be automatically determined from the `$schema` entry in
-    /// the given `shema`. If no `$schema` entry is present Draft 7 will be used
+    /// the given `schema`. If no `$schema` entry is present Draft 7 will be used
     /// by default.
     pub fn from_schema(
         schema: &'a Value,

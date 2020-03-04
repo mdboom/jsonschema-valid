@@ -75,7 +75,7 @@ pub use crate::error::{ErrorIterator, ValidationError};
 /// let mut validation = jsonschema_valid::validate(&cfg, &data);
 /// if let Err(errors) = validation {
 ///     for error in errors {
-///         println!("Error: {:?}", error);
+///         println!("Error: {}", error);
 ///     }
 /// }
 ///
