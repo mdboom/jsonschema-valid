@@ -7,6 +7,8 @@ use crate::error::ValidationError;
 use crate::schemas;
 // TODO: Make the choice of resolver dynamic
 
+const DOCUMENT_PROTOCOL: &str = "document:///";
+
 fn id_of(schema: &Value) -> Option<&str> {
     if let Value::Object(object) = schema {
         object
@@ -23,45 +25,64 @@ pub struct Resolver<'a> {
     id_mapping: HashMap<String, &'a Value>,
 }
 
-fn find_ids<'a>(
+/// Iterate through all of the document fragments with an assigned id, calling a
+/// callback at each location.
+fn find_ids<'a, F>(
     schema: &'a Value,
-    id_mapping: &mut HashMap<String, &'a Value>,
     base_url: &url::Url,
-) -> Result<(), ValidationError> {
+    visitor: &mut F,
+) -> Result<Option<&'a Value>, ValidationError>
+where
+    F: FnMut(String, &'a Value) -> Option<&'a Value>,
+{
     match schema {
         Value::Object(object) => {
             if let Some(url) = id_of(schema) {
-                id_mapping.insert(url.to_string(), schema);
                 let new_url = base_url.join(url)?;
+                if let Some(x) = visitor(new_url.to_string(), schema) {
+                    return Ok(Some(x));
+                }
                 for (_k, v) in object {
-                    find_ids(v, id_mapping, &new_url)?;
+                    let result = find_ids(v, &new_url, visitor)?;
+                    if result.is_some() {
+                        return Ok(result);
+                    }
                 }
             } else {
                 for (_k, v) in object {
-                    find_ids(v, id_mapping, base_url)?;
+                    let result = find_ids(v, base_url, visitor)?;
+                    if result.is_some() {
+                        return Ok(result);
+                    }
                 }
             }
         }
         Value::Array(array) => {
             for v in array {
-                find_ids(v, id_mapping, base_url)?;
+                let result = find_ids(v, base_url, visitor)?;
+                if result.is_some() {
+                    return Ok(result);
+                }
             }
         }
         _ => {}
     }
-    Ok(())
+    Ok(None)
 }
 
 impl<'a> Resolver<'a> {
     pub fn from_schema(schema: &'a Value) -> Result<Resolver<'a>, ValidationError> {
         let base_url = match id_of(schema) {
             Some(url) => url.to_string(),
-            None => "document:///".to_string(),
+            None => DOCUMENT_PROTOCOL.to_string(),
         };
 
         let mut id_mapping: HashMap<String, &'a Value> = HashMap::new();
 
-        find_ids(schema, &mut id_mapping, &url::Url::parse(&base_url)?)?;
+        find_ids(schema, &url::Url::parse(&base_url)?, &mut |id, x| {
+            id_mapping.insert(id, x);
+            None
+        })?;
 
         Ok(Resolver {
             base_url,
@@ -94,7 +115,7 @@ impl<'a> Resolver<'a> {
     ) -> Result<&'a Value, ValidationError> {
         let url_str = url.as_str();
         match url_str {
-            "document:///" => Ok(instance),
+            DOCUMENT_PROTOCOL => Ok(instance),
             _ => match schemas::draft_from_url(url_str) {
                 Some(value) => Ok(value.get_schema()),
                 _ => match self.id_mapping.get(url_str) {
@@ -118,11 +139,27 @@ impl<'a> Resolver<'a> {
         let url = self.join_url(url, ctx)?;
         let mut resource = url.clone();
         resource.set_fragment(None);
-        let document = self.resolve_url(&resource, instance)?;
         let fragment =
             percent_encoding::percent_decode(url.fragment().unwrap_or_else(|| "").as_bytes())
                 .decode_utf8()
                 .unwrap();
+
+        if let Some(x) = find_ids(
+            instance,
+            &url::Url::parse(DOCUMENT_PROTOCOL)?,
+            &mut |id, x| {
+                if id == url.as_str() {
+                    Some(x)
+                } else {
+                    None
+                }
+            },
+        )? {
+            return Ok((resource, x));
+        }
+
+        let document = self.resolve_url(&resource, instance)?;
+
         // TODO Prevent infinite reference recursion
         match document.pointer(&fragment) {
             Some(x) => Ok((resource, x)),
