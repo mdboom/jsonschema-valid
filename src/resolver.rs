@@ -80,7 +80,8 @@ impl<'a> Resolver<'a> {
         let mut id_mapping: HashMap<String, &'a Value> = HashMap::new();
 
         find_ids(schema, &url::Url::parse(&base_url)?, &mut |id, x| {
-            id_mapping.insert(id, x)
+            id_mapping.insert(id, x);
+            None
         })?;
 
         Ok(Resolver {
