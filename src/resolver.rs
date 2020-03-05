@@ -99,7 +99,11 @@ impl<'a> Resolver<'a> {
                 Some(value) => Ok(value.get_schema()),
                 _ => match self.id_mapping.get(url_str) {
                     Some(value) => Ok(value),
-                    None => Err(ValidationError::new("Can't fetch document")),
+                    None => Err(ValidationError::new(
+                        &format!("Can't resolve url {}", url_str),
+                        None,
+                        None,
+                    )),
                 },
             },
         }
@@ -122,7 +126,11 @@ impl<'a> Resolver<'a> {
         // TODO Prevent infinite reference recursion
         match document.pointer(&fragment) {
             Some(x) => Ok((resource, x)),
-            None => Err(ValidationError::new("Couldn't resolve JSON pointer")),
+            None => Err(ValidationError::new(
+                &format!("Couldn't resolve JSON pointer {}", url),
+                None,
+                None,
+            )),
         }
     }
 }
