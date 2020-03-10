@@ -12,12 +12,12 @@ use crate::validators::Validator;
 pub struct Config<'a> {
     schema: &'a Value,
     resolver: Resolver<'a>,
-    draft: &'a dyn schemas::Draft,
+    draft: schemas::Draft,
 }
 
 impl<'a> Config<'a> {
     /// Get the validator object for the draft in use.
-    pub fn get_validator(&self, key: &str) -> Option<Validator> {
+    pub fn get_validator<'v>(&self, key: &'v str) -> Option<Validator<'v>> {
         self.draft.get_validator(key)
     }
 
@@ -54,13 +54,13 @@ impl<'a> Config<'a> {
     /// by default.
     pub fn from_schema(
         schema: &'a Value,
-        draft: Option<&'a dyn schemas::Draft>,
+        draft: Option<schemas::Draft>,
     ) -> Result<Config<'a>, ValidationError> {
         Ok(Config {
             schema,
             resolver: Resolver::from_schema(schema)?,
             draft: draft.unwrap_or_else(|| {
-                schemas::draft_from_schema(schema).unwrap_or_else(|| &schemas::Draft7)
+                schemas::draft_from_schema(schema).unwrap_or_else(|| schemas::Draft::Draft7)
             }),
         })
     }

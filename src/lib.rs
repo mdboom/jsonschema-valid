@@ -16,7 +16,7 @@
 //! # let your_json_data = "{}";
 //! let schema: Value = serde_json::from_str(schema_json)?;
 //! let data: Value = serde_json::from_str(your_json_data)?;
-//! let cfg = jsonschema_valid::Config::from_schema(&schema, Some(&schemas::Draft6)).unwrap();
+//! let cfg = jsonschema_valid::Config::from_schema(&schema, Some(schemas::Draft::Draft6)).unwrap();
 //! // Validate the schema itself
 //! assert!(cfg.validate_schema().is_ok());
 //! // Validate a JSON instance against the schema
@@ -70,7 +70,7 @@ pub use crate::error::{ErrorIterator, ValidationError};
 /// # let your_json_data = "\"string\"";
 /// let schema: Value = serde_json::from_str(schema_json)?;
 /// let data: Value = serde_json::from_str(your_json_data)?;
-/// let cfg = jsonschema_valid::Config::from_schema(&schema, Some(&schemas::Draft6)).unwrap();
+/// let cfg = jsonschema_valid::Config::from_schema(&schema, Some(schemas::Draft::Draft6)).unwrap();
 ///
 /// let mut validation = jsonschema_valid::validate(&cfg, &data);
 /// if let Err(errors) = validation {
@@ -111,7 +111,7 @@ mod tests {
     // Test files we know will fail.
     const KNOWN_FAILURES: &'static [&'static str] = &["refRemote.json"];
 
-    fn test_draft(dirname: &str, draft: &dyn schemas::Draft) {
+    fn test_draft(dirname: &str, draft: schemas::Draft) {
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         path.push("JSON-Schema-Test-Suite/tests");
         path.push(dirname);
@@ -161,16 +161,16 @@ mod tests {
 
     #[test]
     fn test_draft7() {
-        test_draft("draft7", &schemas::Draft7);
+        test_draft("draft7", schemas::Draft::Draft7);
     }
 
     #[test]
     fn test_draft6() {
-        test_draft("draft6", &schemas::Draft6);
+        test_draft("draft6", schemas::Draft::Draft6);
     }
 
     #[test]
     fn test_draft4() {
-        test_draft("draft4", &schemas::Draft4);
+        test_draft("draft4", schemas::Draft::Draft4);
     }
 }
