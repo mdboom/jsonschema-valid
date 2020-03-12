@@ -9,12 +9,14 @@ use crate::schemas;
 
 const DOCUMENT_PROTOCOL: &str = "document:///";
 
-fn id_of(schema: &Value) -> Option<&str> {
+fn id_of(draft_number: u8, schema: &Value) -> Option<&str> {
     if let Value::Object(object) = schema {
-        object
-            .get("$id")
-            .or_else(|| object.get("id"))
-            .and_then(Value::as_str)
+        if draft_number == 4 {
+            object.get("$id").or_else(|| object.get("id"))
+        } else {
+            object.get("$id")
+        }
+        .and_then(Value::as_str)
     } else {
         None
     }
@@ -28,6 +30,7 @@ pub struct Resolver<'a> {
 /// Iterate through all of the document fragments with an assigned id, calling a
 /// callback at each location.
 fn find_ids<'a, F>(
+    draft_number: u8,
     schema: &'a Value,
     base_url: &url::Url,
     visitor: &mut F,
@@ -37,20 +40,20 @@ where
 {
     match schema {
         Value::Object(object) => {
-            if let Some(url) = id_of(schema) {
+            if let Some(url) = id_of(draft_number, schema) {
                 let new_url = base_url.join(url)?;
                 if let Some(x) = visitor(new_url.to_string(), schema) {
                     return Ok(Some(x));
                 }
                 for (_k, v) in object {
-                    let result = find_ids(v, &new_url, visitor)?;
+                    let result = find_ids(draft_number, v, &new_url, visitor)?;
                     if result.is_some() {
                         return Ok(result);
                     }
                 }
             } else {
                 for (_k, v) in object {
-                    let result = find_ids(v, base_url, visitor)?;
+                    let result = find_ids(draft_number, v, base_url, visitor)?;
                     if result.is_some() {
                         return Ok(result);
                     }
@@ -59,7 +62,7 @@ where
         }
         Value::Array(array) => {
             for v in array {
-                let result = find_ids(v, base_url, visitor)?;
+                let result = find_ids(draft_number, v, base_url, visitor)?;
                 if result.is_some() {
                     return Ok(result);
                 }
@@ -71,18 +74,26 @@ where
 }
 
 impl<'a> Resolver<'a> {
-    pub fn from_schema(schema: &'a Value) -> Result<Resolver<'a>, ValidationError> {
-        let base_url = match id_of(schema) {
+    pub fn from_schema(
+        draft_number: u8,
+        schema: &'a Value,
+    ) -> Result<Resolver<'a>, ValidationError> {
+        let base_url = match id_of(draft_number, schema) {
             Some(url) => url.to_string(),
             None => DOCUMENT_PROTOCOL.to_string(),
         };
 
         let mut id_mapping: HashMap<String, &'a Value> = HashMap::new();
 
-        find_ids(schema, &url::Url::parse(&base_url)?, &mut |id, x| {
-            id_mapping.insert(id, x);
-            None
-        })?;
+        find_ids(
+            draft_number,
+            schema,
+            &url::Url::parse(&base_url)?,
+            &mut |id, x| {
+                id_mapping.insert(id, x);
+                None
+            },
+        )?;
 
         Ok(Resolver {
             base_url,
@@ -90,12 +101,17 @@ impl<'a> Resolver<'a> {
         })
     }
 
-    pub fn join_url(&self, url_ref: &str, ctx: &Context) -> Result<url::Url, ValidationError> {
+    pub fn join_url(
+        &self,
+        draft_number: u8,
+        url_ref: &str,
+        ctx: &Context,
+    ) -> Result<url::Url, ValidationError> {
         let mut urls: Vec<&str> = Vec::new();
         urls.push(url_ref);
         let mut frame = ctx;
         loop {
-            if let Some(id) = id_of(frame.x) {
+            if let Some(id) = id_of(draft_number, frame.x) {
                 urls.push(id);
             }
             match frame.parent {
@@ -132,11 +148,12 @@ impl<'a> Resolver<'a> {
 
     pub fn resolve_fragment(
         &self,
+        draft_number: u8,
         url: &str,
         ctx: &Context,
         instance: &'a Value,
     ) -> Result<(url::Url, &'a Value), ValidationError> {
-        let url = self.join_url(url, ctx)?;
+        let url = self.join_url(draft_number, url, ctx)?;
         let mut resource = url.clone();
         resource.set_fragment(None);
         let fragment =
@@ -145,6 +162,7 @@ impl<'a> Resolver<'a> {
                 .unwrap();
 
         if let Some(x) = find_ids(
+            draft_number,
             instance,
             &url::Url::parse(DOCUMENT_PROTOCOL)?,
             &mut |id, x| {

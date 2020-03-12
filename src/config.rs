@@ -56,12 +56,13 @@ impl<'a> Config<'a> {
         schema: &'a Value,
         draft: Option<schemas::Draft>,
     ) -> Result<Config<'a>, ValidationError> {
+        let draft = draft.unwrap_or_else(|| {
+            schemas::draft_from_schema(schema).unwrap_or(schemas::Draft::Draft7)
+        });
         Ok(Config {
             schema,
-            resolver: Resolver::from_schema(schema)?,
-            draft: draft.unwrap_or_else(|| {
-                schemas::draft_from_schema(schema).unwrap_or_else(|| schemas::Draft::Draft7)
-            }),
+            resolver: Resolver::from_schema(draft.get_draft_number(), schema)?,
+            draft,
         })
     }
 
