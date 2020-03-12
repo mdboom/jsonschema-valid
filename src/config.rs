@@ -12,7 +12,7 @@ use crate::validators::Validator;
 pub struct Config<'a> {
     schema: &'a Value,
     resolver: Resolver<'a>,
-    draft: schemas::Draft,
+    pub(crate) draft: schemas::Draft,
 }
 
 impl<'a> Config<'a> {
@@ -61,7 +61,7 @@ impl<'a> Config<'a> {
         });
         Ok(Config {
             schema,
-            resolver: Resolver::from_schema(draft.get_draft_number(), schema)?,
+            resolver: Resolver::from_schema(draft, schema)?,
             draft,
         })
     }

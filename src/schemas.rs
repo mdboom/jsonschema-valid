@@ -10,7 +10,7 @@ use crate::validators;
 use crate::validators::Validator;
 
 /// The validator can validate JSON data against different versions of JSON Schema.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Draft {
     /// JSONSchema [Draft 4](https://json-schema.org/specification-links.html#draft-4)
     Draft4,

@@ -1055,12 +1055,10 @@ pub fn ref_<'a>(
             }
         }
 
-        match cfg.get_resolver().resolve_fragment(
-            cfg.get_draft_number(),
-            sref,
-            &ref_context,
-            cfg.get_schema(),
-        ) {
+        match cfg
+            .get_resolver()
+            .resolve_fragment(cfg.draft, sref, &ref_context, cfg.get_schema())
+        {
             Ok((scope, resolved)) => {
                 let scope_schema = json!({"$id": scope.to_string()});
                 return Box::new(RefIter {
