@@ -2,7 +2,9 @@
 
 <!-- next-header -->
 
-## [Unreleased](https://github.com/mdboom/jsonschema-valid/compare/v0.3.0...master) - ReleaseDate
+## [Unreleased](https://github.com/mdboom/jsonschema-valid/compare/v0.4.0...master) - ReleaseDate
+
+## [0.4.0](https://github.com/mdboom/jsonschema-valid/compare/v0.3.0...v0.4.0) - 2020-03-12
 
 * Updated to comply with the latest version of the JSON Schema Test Suite.
 * **BREAKING CHANGE**: Draft versions are now an enum instead of a trait ([#13](https://github.com/mdboom/jsonschema-valid/pull/13))
