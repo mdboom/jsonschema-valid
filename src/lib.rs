@@ -16,7 +16,7 @@
 //! # let your_json_data = "{}";
 //! let schema: Value = serde_json::from_str(schema_json)?;
 //! let data: Value = serde_json::from_str(your_json_data)?;
-//! let cfg = jsonschema_valid::Config::from_schema(&schema, Some(schemas::Draft::Draft6)).unwrap();
+//! let cfg = jsonschema_valid::Config::from_schema(&schema, Some(schemas::Draft::Draft6))?;
 //! // Validate the schema itself
 //! assert!(cfg.validate_schema().is_ok());
 //! // Validate a JSON instance against the schema
@@ -70,7 +70,7 @@ pub use crate::error::{ErrorIterator, ValidationError};
 /// # let your_json_data = "\"string\"";
 /// let schema: Value = serde_json::from_str(schema_json)?;
 /// let data: Value = serde_json::from_str(your_json_data)?;
-/// let cfg = jsonschema_valid::Config::from_schema(&schema, Some(schemas::Draft::Draft6)).unwrap();
+/// let cfg = jsonschema_valid::Config::from_schema(&schema, Some(schemas::Draft::Draft6))?;
 ///
 /// let mut validation = jsonschema_valid::validate(&cfg, &data);
 /// if let Err(errors) = validation {
