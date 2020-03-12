@@ -1,3 +1,4 @@
+use std::error::Error as StdError;
 use std::fmt;
 use std::iter::{empty, once};
 
@@ -25,6 +26,8 @@ pub struct ValidationError {
     /// The path to the JSON schema fragment within the entire schema.
     pub schema_path: Vec<String>,
 }
+
+impl StdError for ValidationError {}
 
 fn path_to_string(path: &[String]) -> String {
     if path.is_empty() {
