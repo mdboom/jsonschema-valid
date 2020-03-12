@@ -1131,7 +1131,7 @@ mod tests {
             "bar": "additional",
             "baz": "another additional"
         });
-        let cfg = Config::from_schema(&schema, Some(&schemas::Draft6)).unwrap();
+        let cfg = Config::from_schema(&schema, Some(schemas::Draft::Draft6)).unwrap();
         let validation = cfg.validate(&instance);
 
         if let Err(errors) = validation {

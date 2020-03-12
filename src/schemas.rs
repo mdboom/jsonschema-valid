@@ -10,25 +10,59 @@ use crate::validators;
 use crate::validators::Validator;
 
 /// The validator can validate JSON data against different versions of JSON Schema.
-pub trait Draft {
-    /// Get a validator function for the given item.
-    fn get_validator(&self, key: &str) -> Option<Validator>;
+#[derive(Debug, Copy, Clone)]
+pub enum Draft {
+    /// JSONSchema [Draft 4](https://json-schema.org/specification-links.html#draft-4)
+    Draft4,
 
-    /// Get the JSON representation of the schema document.
-    fn get_schema(&self) -> &'static Value;
+    /// JSONSchema [Draft 6](https://json-schema.org/specification-links.html#draft-6)
+    Draft6,
 
-    /// Get a format check function.
-    fn get_format_checker(&self, format: &str) -> Option<FormatChecker>;
-
-    /// Return the draft's number.
-    fn get_draft_number(&self) -> u8;
+    /// JSONSchema [Draft 7](https://json-schema.org/specification-links.html#draft-7)
+    Draft7,
 }
 
-/// JSONSchema [Draft 7](https://json-schema.org/specification-links.html#draft-7)
-pub struct Draft7;
+impl Draft {
+    pub(crate) fn get_validator(self, key: &str) -> Option<Validator> {
+        match self {
+            Draft::Draft4 => draft4::get_validator(key),
+            Draft::Draft6 => draft6::get_validator(key),
+            Draft::Draft7 => draft7::get_validator(key),
+        }
+    }
 
-impl Draft for Draft7 {
-    fn get_validator(&self, key: &str) -> Option<Validator> {
+    /// Get the JSON representation of the schema document.
+    pub fn get_schema(self) -> &'static Value {
+        match self {
+            Draft::Draft7 => draft7::get_schema(),
+            Draft::Draft6 => draft6::get_schema(),
+            Draft::Draft4 => draft4::get_schema(),
+        }
+    }
+
+    /// Get a format check function.
+    pub(crate) fn get_format_checker(self, format: &str) -> Option<FormatChecker> {
+        match self {
+            Draft::Draft4 => draft4::get_format_checker(format),
+            Draft::Draft6 => draft6::get_format_checker(format),
+            Draft::Draft7 => draft7::get_format_checker(format),
+        }
+    }
+
+    /// Return the draft's number.
+    pub fn get_draft_number(self) -> u8 {
+        match self {
+            Draft::Draft4 => 4,
+            Draft::Draft6 => 6,
+            Draft::Draft7 => 7,
+        }
+    }
+}
+
+mod draft7 {
+    use super::*;
+
+    pub(super) fn get_validator(key: &str) -> Option<Validator> {
         match key {
             "$ref" => Some(validators::ref_ as Validator),
             "additionalItems" => Some(validators::additionalItems as Validator),
@@ -66,14 +100,14 @@ impl Draft for Draft7 {
         }
     }
 
-    fn get_schema(&self) -> &'static Value {
+    pub(super) fn get_schema() -> &'static Value {
         lazy_static! {
             static ref DRAFT7: Value = serde_json::from_str(include_str!("draft7.json")).unwrap();
         }
         &DRAFT7
     }
 
-    fn get_format_checker(&self, key: &str) -> Option<FormatChecker> {
+    pub(super) fn get_format_checker(key: &str) -> Option<FormatChecker> {
         match key {
             "date" => Some(format::date as FormatChecker),
             "date-time" => Some(format::datetime as FormatChecker),
@@ -93,17 +127,12 @@ impl Draft for Draft7 {
             _ => None,
         }
     }
-
-    fn get_draft_number(&self) -> u8 {
-        7
-    }
 }
 
-/// JSONSchema [Draft 6](https://json-schema.org/specification-links.html#draft-6)
-pub struct Draft6;
+mod draft6 {
+    use super::*;
 
-impl Draft for Draft6 {
-    fn get_validator(&self, key: &str) -> Option<Validator> {
+    pub(super) fn get_validator(key: &str) -> Option<Validator> {
         match key {
             "$ref" => Some(validators::ref_ as Validator),
             "additionalItems" => Some(validators::additionalItems as Validator),
@@ -140,14 +169,14 @@ impl Draft for Draft6 {
         }
     }
 
-    fn get_schema(&self) -> &'static Value {
+    pub(super) fn get_schema() -> &'static Value {
         lazy_static! {
             static ref DRAFT6: Value = serde_json::from_str(include_str!("draft6.json")).unwrap();
         }
         &DRAFT6
     }
 
-    fn get_format_checker(&self, key: &str) -> Option<FormatChecker> {
+    pub(super) fn get_format_checker(key: &str) -> Option<FormatChecker> {
         match key {
             "date" => Some(format::date as FormatChecker),
             "date-time" => Some(format::datetime as FormatChecker),
@@ -164,17 +193,12 @@ impl Draft for Draft6 {
             _ => None,
         }
     }
-
-    fn get_draft_number(&self) -> u8 {
-        6
-    }
 }
 
-/// JSONSchema [Draft 4](https://json-schema.org/specification-links.html#draft-4)
-pub struct Draft4;
+mod draft4 {
+    use super::*;
 
-impl Draft for Draft4 {
-    fn get_validator(&self, key: &str) -> Option<Validator> {
+    pub(super) fn get_validator(key: &str) -> Option<Validator> {
         match key {
             "$ref" => Some(validators::ref_ as Validator),
             "additionalItems" => Some(validators::additionalItems as Validator),
@@ -206,14 +230,14 @@ impl Draft for Draft4 {
         }
     }
 
-    fn get_schema(&self) -> &'static Value {
+    pub(super) fn get_schema() -> &'static Value {
         lazy_static! {
             static ref DRAFT4: Value = serde_json::from_str(include_str!("draft4.json")).unwrap();
         }
         &DRAFT4
     }
 
-    fn get_format_checker(&self, key: &str) -> Option<FormatChecker> {
+    pub(super) fn get_format_checker(key: &str) -> Option<FormatChecker> {
         match key {
             "date-time" => Some(format::datetime as FormatChecker),
             "email" => Some(format::email as FormatChecker),
@@ -225,24 +249,20 @@ impl Draft for Draft4 {
             _ => None,
         }
     }
-
-    fn get_draft_number(&self) -> u8 {
-        4
-    }
 }
 
 /// Get the `Draft` from a JSON Schema URL.
-pub fn draft_from_url(url: &str) -> Option<&'static dyn Draft> {
+pub fn draft_from_url(url: &str) -> Option<Draft> {
     match url {
-        "http://json-schema.org/draft-07/schema" => Some(&Draft7),
-        "http://json-schema.org/draft-06/schema" => Some(&Draft6),
-        "http://json-schema.org/draft-04/schema" => Some(&Draft4),
+        "http://json-schema.org/draft-07/schema" => Some(Draft::Draft7),
+        "http://json-schema.org/draft-06/schema" => Some(Draft::Draft6),
+        "http://json-schema.org/draft-04/schema" => Some(Draft::Draft4),
         _ => None,
     }
 }
 
 /// Get the `Draft` from a JSON Schema.
-pub fn draft_from_schema(schema: &Value) -> Option<&'static dyn Draft> {
+pub fn draft_from_schema(schema: &Value) -> Option<Draft> {
     schema
         .as_object()
         .and_then(|x| x.get("$schema"))
