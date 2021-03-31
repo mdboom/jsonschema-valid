@@ -61,7 +61,7 @@ pub fn time(_cfg: &Config, value: &str) -> bool {
 }
 
 pub fn json_pointer(_cfg: &Config, value: &str) -> bool {
-    value.parse::<json_pointer::JsonPointer<_, _>>().is_ok()
+    value.parse::<json_ptr::JsonPointer<_, _>>().is_ok()
 }
 
 pub fn uri_template(_cfg: &Config, _value: &str) -> bool {
