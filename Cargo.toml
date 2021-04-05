@@ -1,6 +1,6 @@
 [package]
 name = "jsonschema-valid-compat"
-version = "0.4.1-alpha.1"
+version = "0.4.1-alpha.2"
 authors = ["Michael Droettboom <mdroettboom@mozilla.org>"]
 description = "A simple JSON schema validator."
 repository = "https://github.com/mdboom/jsonschema-valid"
