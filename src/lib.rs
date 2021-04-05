@@ -9,6 +9,9 @@
 //! The following example validates some JSON data against a draft 6 JSON schema.
 //!
 //! ```rust
+//! # extern crate serde_json;
+//! # extern crate lazy_static;
+//! # extern crate jsonschema_valid_compat as jsonschema_valid;
 //! # fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
 //! # use serde_json::Value;
 //! # use jsonschema_valid::schemas;
@@ -24,8 +27,19 @@
 //!
 //! # Ok(()) }
 //! ````
-
 #![warn(missing_docs)]
+
+extern crate serde_json;
+extern crate lazy_static;
+extern crate itertools;
+extern crate regex;
+extern crate url;
+extern crate chrono;
+extern crate iri_string;
+extern crate json_ptr as json_pointer;
+extern crate percent_encoding;
+extern crate textwrap;
+
 
 use serde_json::Value;
 
@@ -63,6 +77,9 @@ pub use crate::error::{ErrorIterator, ValidationError};
 /// The following example validates some JSON data against a draft 6 JSON schema.
 ///
 /// ```rust
+/// # extern crate serde_json;
+/// # extern crate lazy_static;
+/// # extern crate jsonschema_valid_compat as jsonschema_valid;
 /// # fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
 /// # use serde_json::Value;
 /// # use jsonschema_valid::{schemas, Config};

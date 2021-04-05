@@ -1,3 +1,6 @@
+extern crate serde_json;
+extern crate lazy_static;
+extern crate jsonschema_valid_compat as jsonschema_valid;
 use jsonschema_valid::{schemas, Config};
 use lazy_static::lazy_static;
 use serde_json::Value;
