@@ -3,10 +3,7 @@ use std::fmt;
 use std::iter::{empty, once};
 
 use itertools::Itertools;
-use serde_json;
 use serde_json::Value;
-use textwrap;
-use url;
 
 /// An error that can occur during validation.
 #[derive(Default, Debug, Clone)]
@@ -62,7 +59,7 @@ impl fmt::Display for ValidationError {
 
             if let Some(description) = schema.get("description").and_then(|x| x.as_str()) {
                 writeln!(f, "Documentation for this node:")?;
-                writeln!(f, "{}", textwrap::indent(&description, "  "))?;
+                writeln!(f, "{}", textwrap::indent(description, "  "))?;
             };
         }
 
@@ -148,12 +145,10 @@ mod tests {
                 assert!(error.instance_path == vec!("foo"));
                 assert!(error.schema_path == vec!("type", "foo", "properties"));
 
-                assert!(formatted.find("At instance path /foo").is_some());
-                assert!(formatted
-                    .find("At schema path /properties/foo/type")
-                    .is_some());
-                assert!(formatted.find("Invalid type").is_some());
-                assert!(formatted.find("HELLO").is_some());
+                assert!(formatted.contains("At instance path /foo"));
+                assert!(formatted.contains("At schema path /properties/foo/type"));
+                assert!(formatted.contains("Invalid type"));
+                assert!(formatted.contains("HELLO"));
             }
         }
     }

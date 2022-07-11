@@ -109,7 +109,7 @@ mod tests {
     use std::path::PathBuf;
 
     // Test files we know will fail.
-    const KNOWN_FAILURES: &'static [&'static str] = &["refRemote.json"];
+    const KNOWN_FAILURES: &[&str] = &["refRemote.json"];
 
     fn test_draft(dirname: &str, draft: schemas::Draft) {
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -144,12 +144,12 @@ mod tests {
                         let data = test.get("data").unwrap();
                         let valid = test.get("valid").unwrap();
                         if let Value::Bool(expected_valid) = valid {
-                            let cfg = config::Config::from_schema(&schema, Some(draft)).unwrap();
+                            let cfg = config::Config::from_schema(schema, Some(draft)).unwrap();
                             assert!(cfg.validate_schema().is_ok());
-                            let result = validate(&cfg, &data);
+                            let result = validate(&cfg, data);
                             assert_eq!(result.is_ok(), *expected_valid);
-                            let cfg2 = config::Config::from_schema(&schema, Some(draft)).unwrap();
-                            let result2 = cfg2.validate(&data);
+                            let cfg2 = config::Config::from_schema(schema, Some(draft)).unwrap();
+                            let result2 = cfg2.validate(data);
                             assert!(cfg2.validate_schema().is_ok());
                             assert_eq!(result2.is_ok(), *expected_valid);
                         }

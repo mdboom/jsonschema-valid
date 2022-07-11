@@ -43,7 +43,7 @@ impl<'a> Config<'a> {
 
     /// Get the schema currently being checked against.
     pub fn get_schema(&self) -> &Value {
-        &self.schema
+        self.schema
     }
 
     /// Create a new Config object from a given schema.

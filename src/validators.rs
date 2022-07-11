@@ -1,8 +1,6 @@
 #![allow(non_snake_case)]
 #![allow(clippy::too_many_arguments)]
 
-use regex;
-
 use serde_json::{json, Map, Value, Value::Array, Value::Bool, Value::Object};
 
 use crate::config::Config;
@@ -68,7 +66,7 @@ pub fn descend<'a>(
                     schema_object
                         .iter()
                         .flat_map(move |(k, v)| -> ErrorIterator<'a> {
-                            if let Some(validator) = cfg.get_validator(&k) {
+                            if let Some(validator) = cfg.get_validator(k) {
                                 Box::new(
                                     validator(cfg, instance, v, Some(schema), ref_context)
                                         .map(move |err| err.schema_ctx(k.to_string())),
@@ -426,7 +424,7 @@ pub fn minimum_draft4<'a>(
         if parent_schema
             .and_then(|x| x.get("exclusiveMinimum"))
             .and_then(Value::as_bool)
-            .unwrap_or_else(|| false)
+            .unwrap_or(false)
         {
             if instance_number.as_f64() <= minimum.as_f64() {
                 return make_error(
@@ -476,7 +474,7 @@ pub fn maximum_draft4<'a>(
         if parent_schema
             .and_then(|x| x.get("exclusiveMaximum"))
             .and_then(Value::as_bool)
-            .unwrap_or_else(|| false)
+            .unwrap_or(false)
         {
             if instance_number.as_f64() >= maximum.as_f64() {
                 return make_error(
@@ -733,41 +731,11 @@ pub fn enum_<'a>(
 fn single_type(instance: &Value, schema: &Value) -> bool {
     if let Value::String(typename) = schema {
         return match typename.as_ref() {
-            "array" => {
-                if let Array(_) = instance {
-                    true
-                } else {
-                    false
-                }
-            }
-            "object" => {
-                if let Object(_) = instance {
-                    true
-                } else {
-                    false
-                }
-            }
-            "null" => {
-                if let Value::Null = instance {
-                    true
-                } else {
-                    false
-                }
-            }
-            "number" => {
-                if let Value::Number(_) = instance {
-                    true
-                } else {
-                    false
-                }
-            }
-            "string" => {
-                if let Value::String(_) = instance {
-                    true
-                } else {
-                    false
-                }
-            }
+            "array" => matches!(instance, Array(_)),
+            "object" => matches!(instance, Object(_)),
+            "null" => matches!(instance, Value::Null),
+            "number" => matches!(instance, Value::Number(_)),
+            "string" => matches!(instance, Value::String(_)),
             "integer" => {
                 if let Value::Number(number) = instance {
                     number.is_i64()
@@ -778,13 +746,7 @@ fn single_type(instance: &Value, schema: &Value) -> bool {
                     false
                 }
             }
-            "boolean" => {
-                if let Bool(_) = instance {
-                    true
-                } else {
-                    false
-                }
-            }
+            "boolean" => matches!(instance, Bool(_)),
             _ => true,
         };
     }
@@ -1099,7 +1061,7 @@ pub fn if_<'a>(
         if let Some(then) = parent_schema.and_then(|x| x.get("then")) {
             if then.is_object() {
                 return Box::new(
-                    descend(cfg, instance, &then, Some(schema), ref_context)
+                    descend(cfg, instance, then, Some(schema), ref_context)
                         .map(move |err| err.schema_ctx("then".to_string())),
                 );
             }
@@ -1107,7 +1069,7 @@ pub fn if_<'a>(
     } else if let Some(else_) = parent_schema.and_then(|x| x.get("else")) {
         if else_.is_object() {
             return Box::new(
-                descend(cfg, instance, &else_, Some(schema), ref_context)
+                descend(cfg, instance, else_, Some(schema), ref_context)
                     .map(move |err| err.schema_ctx("else".to_string())),
             );
         }
@@ -1143,12 +1105,9 @@ mod tests {
                 assert!(error.schema_path == vec!("additionalProperties"));
 
                 assert!(formatted
-                    .find("Additional properties are not allowed. Found \"bar\", \"baz\".")
-                    .is_some());
-                assert!(formatted.find("At instance path /:").is_some());
-                assert!(formatted
-                    .find("At schema path /additionalProperties")
-                    .is_some());
+                    .contains("Additional properties are not allowed. Found \"bar\", \"baz\"."));
+                assert!(formatted.contains("At instance path /:"));
+                assert!(formatted.contains("At schema path /additionalProperties"));
             }
         }
     }
