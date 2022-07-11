@@ -99,8 +99,7 @@ impl<'a> Resolver<'a> {
         url_ref: &str,
         ctx: &Context,
     ) -> Result<url::Url, ValidationError> {
-        let mut urls: Vec<&str> = Vec::new();
-        urls.push(url_ref);
+        let mut urls: Vec<&str> = vec![url_ref];
         let mut frame = ctx;
         loop {
             if let Some(id) = id_of(draft, frame.x) {
@@ -148,10 +147,9 @@ impl<'a> Resolver<'a> {
         let url = self.join_url(draft, url, ctx)?;
         let mut resource = url.clone();
         resource.set_fragment(None);
-        let fragment =
-            percent_encoding::percent_decode(url.fragment().unwrap_or_else(|| "").as_bytes())
-                .decode_utf8()
-                .unwrap();
+        let fragment = percent_encoding::percent_decode(url.fragment().unwrap_or("").as_bytes())
+            .decode_utf8()
+            .unwrap();
 
         if let Some(x) = find_ids(
             draft,
