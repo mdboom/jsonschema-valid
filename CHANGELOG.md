@@ -4,6 +4,8 @@
 
 ## [Unreleased](https://github.com/mdboom/jsonschema-valid/compare/v0.4.0...master) - ReleaseDate
 
+* Updated dependencies
+
 ## [0.4.0](https://github.com/mdboom/jsonschema-valid/compare/v0.3.0...v0.4.0) - 2020-03-12
 
 * Updated to comply with the latest version of the JSON Schema Test Suite.
