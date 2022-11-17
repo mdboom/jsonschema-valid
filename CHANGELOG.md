@@ -2,7 +2,9 @@
 
 <!-- next-header -->
 
-## [Unreleased](https://github.com/mdboom/jsonschema-valid/compare/v0.5.0...master) - ReleaseDate
+## [Unreleased](https://github.com/mdboom/jsonschema-valid/compare/v0.5.1...master) - ReleaseDate
+
+## [0.5.1](https://github.com/mdboom/jsonschema-valid/compare/v0.5.0...v0.5.1) - 2022-11-17
 
 ## [0.5.0](https://github.com/mdboom/jsonschema-valid/compare/v0.4.0...v0.5.0) - 2022-07-11
 
