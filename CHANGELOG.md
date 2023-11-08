@@ -2,7 +2,9 @@
 
 <!-- next-header -->
 
-## [Unreleased](https://github.com/mdboom/jsonschema-valid/compare/v0.5.1...master) - ReleaseDate
+## [Unreleased](https://github.com/mdboom/jsonschema-valid/compare/v0.5.2...master) - ReleaseDate
+
+## [0.5.2](https://github.com/mdboom/jsonschema-valid/compare/v0.5.1...v0.5.2) - 2023-11-08
 
 * Updated textwrap dependency
 
