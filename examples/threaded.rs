@@ -1,14 +1,13 @@
-use jsonschema_valid::{schemas, Config};
-use lazy_static::lazy_static;
+use std::sync::LazyLock;
+
+use jsonschema_valid::{Config, schemas};
 use serde_json::Value;
 
-lazy_static! {
-    // Create the schema and schema validator globally once, then re-use them in multiple threads
-    // without problems.
-
-    static ref SCHEMA: Value = serde_json::from_str("{}").unwrap();
-    static ref SCHEMA_CFG: Config<'static> = Config::from_schema(&SCHEMA, Some(schemas::Draft::Draft6)).unwrap();
-}
+// Create the schema and schema validator globally once, then re-use them in multiple threads
+// without problems.
+static SCHEMA: LazyLock<Value> = LazyLock::new(|| serde_json::from_str("{}").unwrap());
+static SCHEMA_CFG: LazyLock<Config<'static>> =
+    LazyLock::new(|| Config::from_schema(&SCHEMA, Some(schemas::Draft::Draft6)).unwrap());
 
 fn main() {
     {

@@ -1,14 +1,11 @@
-use std::iter;
+use std::{iter, sync::LazyLock};
 
 use itertools::Itertools;
-use lazy_static::lazy_static;
 use serde_json::{json, Map, Value, Value::Number};
 
 pub fn bool_to_object_schema(schema: &Value) -> &Value {
-    lazy_static! {
-        static ref EMPTY_SCHEMA: Value = Value::Object(Map::new());
-        static ref INVERSE_SCHEMA: Value = json!({"not": {}});
-    }
+    static EMPTY_SCHEMA: LazyLock<Value> = LazyLock::new(|| Value::Object(Map::new()));
+    static INVERSE_SCHEMA: LazyLock<Value> = LazyLock::new(|| json!({"not": {}}));
 
     match schema {
         Value::Bool(bool) => {
