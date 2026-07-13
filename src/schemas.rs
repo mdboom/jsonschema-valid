@@ -1,7 +1,8 @@
 //! Implementations of the different drafts of JSON schema.
 //!
 
-use lazy_static::lazy_static;
+use std::sync::LazyLock;
+
 use serde_json::Value;
 
 use crate::format;
@@ -101,9 +102,7 @@ mod draft7 {
     }
 
     pub(super) fn get_schema() -> &'static Value {
-        lazy_static! {
-            static ref DRAFT7: Value = serde_json::from_str(include_str!("draft7.json")).unwrap();
-        }
+        static DRAFT7: LazyLock<Value> = LazyLock::new(|| serde_json::from_str(include_str!("draft7.json")).unwrap());
         &DRAFT7
     }
 
@@ -170,9 +169,7 @@ mod draft6 {
     }
 
     pub(super) fn get_schema() -> &'static Value {
-        lazy_static! {
-            static ref DRAFT6: Value = serde_json::from_str(include_str!("draft6.json")).unwrap();
-        }
+        static DRAFT6: LazyLock<Value> = LazyLock::new(|| serde_json::from_str(include_str!("draft6.json")).unwrap());
         &DRAFT6
     }
 
@@ -231,9 +228,7 @@ mod draft4 {
     }
 
     pub(super) fn get_schema() -> &'static Value {
-        lazy_static! {
-            static ref DRAFT4: Value = serde_json::from_str(include_str!("draft4.json")).unwrap();
-        }
+        static DRAFT4: LazyLock<Value> = LazyLock::new(|| serde_json::from_str(include_str!("draft4.json")).unwrap());
         &DRAFT4
     }
 
