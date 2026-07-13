@@ -24,7 +24,7 @@ pub enum Draft {
 }
 
 impl Draft {
-    pub(crate) fn get_validator(self, key: &str) -> Option<Validator> {
+    pub(crate) fn get_validator(self, key: &str) -> Option<Validator<'_>> {
         match self {
             Draft::Draft4 => draft4::get_validator(key),
             Draft::Draft6 => draft6::get_validator(key),
@@ -63,7 +63,7 @@ impl Draft {
 mod draft7 {
     use super::*;
 
-    pub(super) fn get_validator(key: &str) -> Option<Validator> {
+    pub(super) fn get_validator(key: &str) -> Option<Validator<'_>> {
         match key {
             "$ref" => Some(validators::ref_ as Validator),
             "additionalItems" => Some(validators::additionalItems as Validator),
@@ -102,7 +102,8 @@ mod draft7 {
     }
 
     pub(super) fn get_schema() -> &'static Value {
-        static DRAFT7: LazyLock<Value> = LazyLock::new(|| serde_json::from_str(include_str!("draft7.json")).unwrap());
+        static DRAFT7: LazyLock<Value> =
+            LazyLock::new(|| serde_json::from_str(include_str!("draft7.json")).unwrap());
         &DRAFT7
     }
 
@@ -131,7 +132,7 @@ mod draft7 {
 mod draft6 {
     use super::*;
 
-    pub(super) fn get_validator(key: &str) -> Option<Validator> {
+    pub(super) fn get_validator(key: &str) -> Option<Validator<'_>> {
         match key {
             "$ref" => Some(validators::ref_ as Validator),
             "additionalItems" => Some(validators::additionalItems as Validator),
@@ -169,7 +170,8 @@ mod draft6 {
     }
 
     pub(super) fn get_schema() -> &'static Value {
-        static DRAFT6: LazyLock<Value> = LazyLock::new(|| serde_json::from_str(include_str!("draft6.json")).unwrap());
+        static DRAFT6: LazyLock<Value> =
+            LazyLock::new(|| serde_json::from_str(include_str!("draft6.json")).unwrap());
         &DRAFT6
     }
 
@@ -195,7 +197,7 @@ mod draft6 {
 mod draft4 {
     use super::*;
 
-    pub(super) fn get_validator(key: &str) -> Option<Validator> {
+    pub(super) fn get_validator(key: &str) -> Option<Validator<'_>> {
         match key {
             "$ref" => Some(validators::ref_ as Validator),
             "additionalItems" => Some(validators::additionalItems as Validator),
@@ -228,7 +230,8 @@ mod draft4 {
     }
 
     pub(super) fn get_schema() -> &'static Value {
-        static DRAFT4: LazyLock<Value> = LazyLock::new(|| serde_json::from_str(include_str!("draft4.json")).unwrap());
+        static DRAFT4: LazyLock<Value> =
+            LazyLock::new(|| serde_json::from_str(include_str!("draft4.json")).unwrap());
         &DRAFT4
     }
 

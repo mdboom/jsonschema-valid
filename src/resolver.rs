@@ -156,11 +156,7 @@ impl<'a> Resolver<'a> {
             instance,
             &url::Url::parse(DOCUMENT_PROTOCOL)?,
             &mut |id, x| {
-                if id == url.as_str() {
-                    Some(x)
-                } else {
-                    None
-                }
+                if id == url.as_str() { Some(x) } else { None }
             },
         )? {
             return Ok((resource, x));
