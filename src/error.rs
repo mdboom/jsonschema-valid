@@ -127,7 +127,7 @@ pub fn no_error<'a>() -> ErrorIterator<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{schemas, Config};
+    use crate::{Config, schemas};
     use serde_json::json;
 
     #[test]

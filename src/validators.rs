@@ -1,11 +1,11 @@
 #![allow(non_snake_case)]
 #![allow(clippy::too_many_arguments)]
 
-use serde_json::{json, Map, Value, Value::Array, Value::Bool, Value::Object};
+use serde_json::{Map, Value, Value::Array, Value::Bool, Value::Object, json};
 
 use crate::config::Config;
 use crate::context::Context;
-use crate::error::{make_error, no_error, ErrorIterator, ValidationError};
+use crate::error::{ErrorIterator, ValidationError, make_error, no_error};
 use crate::unique;
 use crate::util;
 
@@ -40,7 +40,6 @@ pub type Validator<'a> = fn(
 
 /// The top-level validation function that performs all of the concrete
 /// validation functions at a given instance/schema pair.
-
 pub fn descend<'a>(
     cfg: &'a Config<'a>,
     instance: &'a Value,
@@ -148,7 +147,8 @@ pub fn propertyNames<'a>(
                 if self.error_i < self.collected_errors.len() {
                     self.error_i += 1;
                     return Some(self.collected_errors[self.error_i - 1].clone());
-                } else if let Some(instance) = self.instance_cursor.next() {
+                } else {
+                    let instance = self.instance_cursor.next()?;
                     let key = Value::String(instance.to_string());
                     self.collected_errors = descend(
                         self.cfg,
@@ -159,8 +159,6 @@ pub fn propertyNames<'a>(
                     )
                     .collect();
                     self.error_i = 0;
-                } else {
-                    return None;
                 }
             }
         }
@@ -237,19 +235,17 @@ pub fn additionalProperties<'a>(
                         )
                     }));
                 }
-                Bool(bool) => {
-                    if !bool {
-                        let extra_string = util::format_list(&mut extras);
-                        if !extra_string.is_empty() {
-                            return make_error(
-                                format!(
-                                    "Additional properties are not allowed. Found {}.",
-                                    extra_string
-                                ),
-                                Some(instance),
-                                parent_schema,
-                            );
-                        }
+                Bool(bool) if !bool => {
+                    let extra_string = util::format_list(&mut extras);
+                    if !extra_string.is_empty() {
+                        return make_error(
+                            format!(
+                                "Additional properties are not allowed. Found {}.",
+                                extra_string
+                            ),
+                            Some(instance),
+                            parent_schema,
+                        );
                     }
                 }
                 _ => {}
@@ -302,35 +298,32 @@ pub fn additionalItems<'a>(
     parent_schema: Option<&'a Value>,
     ref_context: Context<'a>,
 ) -> ErrorIterator<'a> {
-    if let Some(parent_schema) = parent_schema {
-        if let (Array(instance_array), Some(Array(items))) = (instance, parent_schema.get("items"))
-        {
-            match schema {
-                Object(_) => {
-                    return Box::new(
-                        instance_array
-                            .iter()
-                            .enumerate()
-                            .skip(items.len())
-                            .flat_map(move |(index, item)| {
-                                Box::new(
-                                    descend(cfg, item, schema, Some(parent_schema), ref_context)
-                                        .map(move |err| err.instance_ctx(index.to_string())),
-                                )
-                            }),
-                    )
-                }
-                Bool(b) => {
-                    if !b && instance_array.len() > items.len() {
-                        return make_error(
-                            "Additional items are not allowed.",
-                            Some(instance),
-                            Some(parent_schema),
-                        );
-                    }
-                }
-                _ => {}
+    if let Some(parent_schema) = parent_schema
+        && let (Array(instance_array), Some(Array(items))) = (instance, parent_schema.get("items"))
+    {
+        match schema {
+            Object(_) => {
+                return Box::new(
+                    instance_array
+                        .iter()
+                        .enumerate()
+                        .skip(items.len())
+                        .flat_map(move |(index, item)| {
+                            Box::new(
+                                descend(cfg, item, schema, Some(parent_schema), ref_context)
+                                    .map(move |err| err.instance_ctx(index.to_string())),
+                            )
+                        }),
+                );
             }
+            Bool(b) if !b && instance_array.len() > items.len() => {
+                return make_error(
+                    "Additional items are not allowed.",
+                    Some(instance),
+                    Some(parent_schema),
+                );
+            }
+            _ => {}
         }
     }
     no_error()
@@ -382,14 +375,14 @@ pub fn exclusiveMinimum<'a>(
     _parent_schema: Option<&'a Value>,
     _ref_context: Context<'a>,
 ) -> ErrorIterator<'a> {
-    if let (Value::Number(instance_number), Value::Number(schema_number)) = (instance, schema) {
-        if instance_number.as_f64() <= schema_number.as_f64() {
-            return make_error(
-                format!("{} <= exclusiveMinimum {}", instance_number, schema_number),
-                Some(instance),
-                Some(schema),
-            );
-        }
+    if let (Value::Number(instance_number), Value::Number(schema_number)) = (instance, schema)
+        && instance_number.as_f64() <= schema_number.as_f64()
+    {
+        return make_error(
+            format!("{} <= exclusiveMinimum {}", instance_number, schema_number),
+            Some(instance),
+            Some(schema),
+        );
     }
     no_error()
 }
@@ -401,14 +394,14 @@ pub fn exclusiveMaximum<'a>(
     _parent_schema: Option<&'a Value>,
     _ref_context: Context<'a>,
 ) -> ErrorIterator<'a> {
-    if let (Value::Number(instance_number), Value::Number(schema_number)) = (instance, schema) {
-        if instance_number.as_f64() >= schema_number.as_f64() {
-            return make_error(
-                format!("{} >= exclusiveMaximum {}", instance_number, schema_number),
-                Some(instance),
-                Some(schema),
-            );
-        }
+    if let (Value::Number(instance_number), Value::Number(schema_number)) = (instance, schema)
+        && instance_number.as_f64() >= schema_number.as_f64()
+    {
+        return make_error(
+            format!("{} >= exclusiveMaximum {}", instance_number, schema_number),
+            Some(instance),
+            Some(schema),
+        );
     }
     no_error()
 }
@@ -451,14 +444,14 @@ pub fn minimum<'a>(
     _parent_schema: Option<&'a Value>,
     _ref_context: Context<'a>,
 ) -> ErrorIterator<'a> {
-    if let (Value::Number(instance_number), Value::Number(schema_number)) = (instance, schema) {
-        if instance.as_f64() < schema_number.as_f64() {
-            return make_error(
-                format!("{} < minimum {}", instance_number, schema_number),
-                Some(instance),
-                Some(schema),
-            );
-        }
+    if let (Value::Number(instance_number), Value::Number(schema_number)) = (instance, schema)
+        && instance.as_f64() < schema_number.as_f64()
+    {
+        return make_error(
+            format!("{} < minimum {}", instance_number, schema_number),
+            Some(instance),
+            Some(schema),
+        );
     }
     no_error()
 }
@@ -501,14 +494,14 @@ pub fn maximum<'a>(
     _parent_schema: Option<&'a Value>,
     _ref_context: Context<'a>,
 ) -> ErrorIterator<'a> {
-    if let (Value::Number(instance_number), Value::Number(maximum)) = (instance, schema) {
-        if instance_number.as_f64() > maximum.as_f64() {
-            return make_error(
-                format!("{} > maximum {}", instance_number, maximum),
-                Some(instance),
-                Some(schema),
-            );
-        }
+    if let (Value::Number(instance_number), Value::Number(maximum)) = (instance, schema)
+        && instance_number.as_f64() > maximum.as_f64()
+    {
+        return make_error(
+            format!("{} > maximum {}", instance_number, maximum),
+            Some(instance),
+            Some(schema),
+        );
     }
     no_error()
 }
@@ -548,14 +541,14 @@ pub fn minItems<'a>(
     _parent_schema: Option<&'a Value>,
     _ref_context: Context<'a>,
 ) -> ErrorIterator<'a> {
-    if let (Array(instance_array), Value::Number(schema_number)) = (instance, schema) {
-        if instance_array.len() < schema_number.as_u64().unwrap() as usize {
-            return make_error(
-                format!("{} < minItems {}", instance_array.len(), schema_number),
-                Some(instance),
-                Some(schema),
-            );
-        }
+    if let (Array(instance_array), Value::Number(schema_number)) = (instance, schema)
+        && instance_array.len() < schema_number.as_u64().unwrap() as usize
+    {
+        return make_error(
+            format!("{} < minItems {}", instance_array.len(), schema_number),
+            Some(instance),
+            Some(schema),
+        );
     }
     no_error()
 }
@@ -567,14 +560,14 @@ pub fn maxItems<'a>(
     _parent_schema: Option<&'a Value>,
     _ref_context: Context<'a>,
 ) -> ErrorIterator<'a> {
-    if let (Array(instance_array), Value::Number(schema_number)) = (instance, schema) {
-        if instance_array.len() > schema_number.as_u64().unwrap() as usize {
-            return make_error(
-                format!("{} > maxItems {}", instance_array.len(), schema_number),
-                Some(instance),
-                Some(schema),
-            );
-        }
+    if let (Array(instance_array), Value::Number(schema_number)) = (instance, schema)
+        && instance_array.len() > schema_number.as_u64().unwrap() as usize
+    {
+        return make_error(
+            format!("{} > maxItems {}", instance_array.len(), schema_number),
+            Some(instance),
+            Some(schema),
+        );
     }
     no_error()
 }
@@ -586,10 +579,11 @@ pub fn uniqueItems<'a>(
     _parent_schema: Option<&'a Value>,
     _ref_context: Context<'a>,
 ) -> ErrorIterator<'a> {
-    if let (Array(instance_array), Bool(schema)) = (instance, schema) {
-        if *schema && !unique::has_unique_elements(&mut instance_array.iter()) {
-            return make_error("Items are not unique", Some(instance), None);
-        }
+    if let (Array(instance_array), Bool(schema)) = (instance, schema)
+        && *schema
+        && !unique::has_unique_elements(&mut instance_array.iter())
+    {
+        return make_error("Items are not unique", Some(instance), None);
     }
     no_error()
 }
@@ -620,12 +614,11 @@ pub fn format<'a>(
     _parent_schema: Option<&'a Value>,
     _ref_context: Context<'a>,
 ) -> ErrorIterator<'a> {
-    if let (Value::String(instance_string), Value::String(schema_string)) = (instance, schema) {
-        if let Some(checker) = cfg.get_format_checker(schema_string) {
-            if !checker(cfg, instance_string) {
-                return make_error("Invalid for format.", Some(instance), Some(schema));
-            }
-        }
+    if let (Value::String(instance_string), Value::String(schema_string)) = (instance, schema)
+        && let Some(checker) = cfg.get_format_checker(schema_string)
+        && !checker(cfg, instance_string)
+    {
+        return make_error("Invalid for format.", Some(instance), Some(schema));
     }
     no_error()
 }
@@ -693,14 +686,14 @@ pub fn dependencies<'a>(
                         );
                     } else {
                         for dep0 in util::iter_or_once(dep) {
-                            if let Value::String(key) = dep0 {
-                                if !instance_object.contains_key(key) {
-                                    return make_error(
-                                        "Invalid dependencies",
-                                        Some(instance),
-                                        Some(schema),
-                                    );
-                                }
+                            if let Value::String(key) = dep0
+                                && !instance_object.contains_key(key)
+                            {
+                                return make_error(
+                                    "Invalid dependencies",
+                                    Some(instance),
+                                    Some(schema),
+                                );
                             }
                         }
                     }
@@ -719,10 +712,10 @@ pub fn enum_<'a>(
     _parent_schema: Option<&'a Value>,
     _ref_context: Context<'a>,
 ) -> ErrorIterator<'a> {
-    if let Array(enums) = schema {
-        if !enums.iter().any(|val| util::json_equal(val, instance)) {
-            return make_error("Value is not in enum.", Some(instance), Some(schema));
-        }
+    if let Array(enums) = schema
+        && !enums.iter().any(|val| util::json_equal(val, instance))
+    {
+        return make_error("Value is not in enum.", Some(instance), Some(schema));
     }
     no_error()
 }
@@ -824,18 +817,18 @@ pub fn minProperties<'a>(
     _parent_schema: Option<&'a Value>,
     _ref_context: Context<'a>,
 ) -> ErrorIterator<'a> {
-    if let (Object(instance_object), Value::Number(schema_number)) = (instance, schema) {
-        if instance_object.len() < schema_number.as_u64().unwrap() as usize {
-            return make_error(
-                format!(
-                    "{} < minProperties {}",
-                    instance_object.len(),
-                    schema_number
-                ),
-                Some(instance),
-                Some(schema),
-            );
-        }
+    if let (Object(instance_object), Value::Number(schema_number)) = (instance, schema)
+        && instance_object.len() < schema_number.as_u64().unwrap() as usize
+    {
+        return make_error(
+            format!(
+                "{} < minProperties {}",
+                instance_object.len(),
+                schema_number
+            ),
+            Some(instance),
+            Some(schema),
+        );
     }
     no_error()
 }
@@ -847,18 +840,18 @@ pub fn maxProperties<'a>(
     _parent_schema: Option<&'a Value>,
     _ref_context: Context<'a>,
 ) -> ErrorIterator<'a> {
-    if let (Object(instance_object), Value::Number(schema_number)) = (instance, schema) {
-        if instance_object.len() > schema_number.as_u64().unwrap() as usize {
-            return make_error(
-                format!(
-                    "{} > maxProperties {}",
-                    instance_object.len(),
-                    schema_number
-                ),
-                Some(instance),
-                Some(schema),
-            );
-        }
+    if let (Object(instance_object), Value::Number(schema_number)) = (instance, schema)
+        && instance_object.len() > schema_number.as_u64().unwrap() as usize
+    {
+        return make_error(
+            format!(
+                "{} > maxProperties {}",
+                instance_object.len(),
+                schema_number
+            ),
+            Some(instance),
+            Some(schema),
+        );
     }
     no_error()
 }
@@ -1040,7 +1033,7 @@ pub fn ref_<'a>(
                     format!("Couldn't resolve reference {}", sref),
                     Some(instance),
                     None,
-                )
+                );
             }
         }
     }
@@ -1058,28 +1051,28 @@ pub fn if_<'a>(
         .next()
         .is_none()
     {
-        if let Some(then) = parent_schema.and_then(|x| x.get("then")) {
-            if then.is_object() {
-                return Box::new(
-                    descend(cfg, instance, then, Some(schema), ref_context)
-                        .map(move |err| err.schema_ctx("then".to_string())),
-                );
-            }
-        }
-    } else if let Some(else_) = parent_schema.and_then(|x| x.get("else")) {
-        if else_.is_object() {
+        if let Some(then) = parent_schema.and_then(|x| x.get("then"))
+            && then.is_object()
+        {
             return Box::new(
-                descend(cfg, instance, else_, Some(schema), ref_context)
-                    .map(move |err| err.schema_ctx("else".to_string())),
+                descend(cfg, instance, then, Some(schema), ref_context)
+                    .map(move |err| err.schema_ctx("then".to_string())),
             );
         }
+    } else if let Some(else_) = parent_schema.and_then(|x| x.get("else"))
+        && else_.is_object()
+    {
+        return Box::new(
+            descend(cfg, instance, else_, Some(schema), ref_context)
+                .map(move |err| err.schema_ctx("else".to_string())),
+        );
     }
     no_error()
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{schemas, Config};
+    use crate::{Config, schemas};
     use serde_json::json;
 
     #[test]
@@ -1104,8 +1097,10 @@ mod tests {
                 assert!(error.instance_path == (Vec::<String>::new()));
                 assert!(error.schema_path == vec!("additionalProperties"));
 
-                assert!(formatted
-                    .contains("Additional properties are not allowed. Found \"bar\", \"baz\"."));
+                assert!(
+                    formatted
+                        .contains("Additional properties are not allowed. Found \"bar\", \"baz\".")
+                );
                 assert!(formatted.contains("At instance path /:"));
                 assert!(formatted.contains("At schema path /additionalProperties"));
             }

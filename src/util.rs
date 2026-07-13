@@ -1,7 +1,7 @@
 use std::{iter, sync::LazyLock};
 
 use itertools::Itertools;
-use serde_json::{json, Map, Value, Value::Number};
+use serde_json::{Map, Value, Value::Number, json};
 
 pub fn bool_to_object_schema(schema: &Value) -> &Value {
     static EMPTY_SCHEMA: LazyLock<Value> = LazyLock::new(|| Value::Object(Map::new()));
