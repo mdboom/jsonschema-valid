@@ -1,6 +1,7 @@
 use std::error::Error as StdError;
 use std::fmt;
 use std::iter::{empty, once};
+use std::ops::Deref;
 
 use itertools::Itertools;
 use serde_json::Value;
@@ -8,6 +9,11 @@ use serde_json::Value;
 /// An error that can occur during validation.
 #[derive(Default, Debug, Clone)]
 pub struct ValidationError {
+    inner: Box<InnerError>,
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct InnerError {
     /// The error message.
     pub msg: String,
 
@@ -26,6 +32,14 @@ pub struct ValidationError {
 
 impl StdError for ValidationError {}
 
+impl Deref for ValidationError {
+    type Target = InnerError;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
 fn path_to_string(path: &[String]) -> String {
     if path.is_empty() {
         "/".to_string()
@@ -36,13 +50,13 @@ fn path_to_string(path: &[String]) -> String {
 
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "{}", textwrap::fill(&self.msg, 78))?;
+        writeln!(f, "{}", textwrap::fill(&self.inner.msg, 78))?;
 
-        if let Some(instance) = &self.instance {
+        if let Some(instance) = &self.inner.instance {
             writeln!(
                 f,
                 "At instance path {}:",
-                path_to_string(&self.instance_path)
+                path_to_string(&self.inner.instance_path)
             )?;
 
             let json_content =
@@ -50,8 +64,12 @@ impl fmt::Display for ValidationError {
             writeln!(f, "{}", textwrap::indent(&json_content, "  "))?;
         }
 
-        if let Some(schema) = &self.schema {
-            writeln!(f, "At schema path {}:", path_to_string(&self.schema_path))?;
+        if let Some(schema) = &self.inner.schema {
+            writeln!(
+                f,
+                "At schema path {}:",
+                path_to_string(&self.inner.schema_path)
+            )?;
 
             let json_content =
                 serde_json::to_string_pretty(&schema).unwrap_or_else(|_| "".to_string());
@@ -78,29 +96,31 @@ impl ValidationError {
     /// Create a new validation error with the given error message.
     pub fn new(msg: &str, instance: Option<&Value>, schema: Option<&Value>) -> ValidationError {
         ValidationError {
-            msg: String::from(msg),
-            instance: instance.cloned(),
-            schema: schema.cloned(),
-            ..Default::default()
+            inner: Box::new(InnerError {
+                msg: String::from(msg),
+                instance: instance.cloned(),
+                schema: schema.cloned(),
+                ..Default::default()
+            }),
         }
     }
 
     /// Update the instance and schema context for the error.
     pub fn add_ctx(mut self, instance_context: String, schema_context: String) -> Self {
-        self.instance_path.push(instance_context);
-        self.schema_path.push(schema_context);
+        self.inner.instance_path.push(instance_context);
+        self.inner.schema_path.push(schema_context);
         self
     }
 
     /// Update the instance context for the error.
     pub fn instance_ctx(mut self, instance_context: String) -> Self {
-        self.instance_path.push(instance_context);
+        self.inner.instance_path.push(instance_context);
         self
     }
 
     /// Update the schema context for the error.
     pub fn schema_ctx(mut self, schema_context: String) -> Self {
-        self.schema_path.push(schema_context);
+        self.inner.schema_path.push(schema_context);
         self
     }
 }
